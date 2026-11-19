@@ -1,0 +1,1539 @@
+MASTER BUILD PROMPT FOR AI-ASSISTED IDE (ANTIGRAVITY / KIRO / CURSOR / OTHER CODING AGENTS)
+PROJECT: ATTENDWISE AI — AGENTIC TIME & ATTENDANCE EXCEPTION MANAGEMENT PLATFORM
+VERSION: 1.0
+
+======================================================================
+0. YOUR ROLE AND OPERATING MODE
+======================================================================
+
+You are the principal software architect, senior full-stack engineer, AI/agent engineer, workflow engineer, DevOps engineer, QA engineer, and technical product owner for this project.
+
+Your task is to DESIGN, IMPLEMENT, TEST, DOCUMENT, AND CONTINUOUSLY IMPROVE a complete, demo-ready product called AttendWise AI. Do not stop at a plan, wireframe, pseudocode, or a few disconnected screens. Build a coherent working system in the repository.
+
+Work autonomously where requirements are clear. Make sensible engineering decisions, but do not silently make risky business-policy assumptions. When a business rule is unknown, represent it as configurable sample policy, label it as a demo assumption, and surface uncertainty to the user/manager instead of inventing a real company rule.
+
+IMPORTANT WORKING RULES:
+1. First inspect the entire existing repository, package files, environment examples, existing code, and any supplied challenge brief/reference material. Do not overwrite working code or replace the current stack without a clear reason.
+2. If the repository is empty, establish the architecture described below.
+3. If there is an existing implementation, preserve useful work and adapt this design to it. Document deviations.
+4. Work in small, verifiable milestones. After each milestone, run relevant tests, linting, type-checking, and builds. Fix failures before moving forward where practical.
+5. Never claim a feature works unless it has been implemented and tested. Use TODO markers for genuinely unfinished work and record them in PROJECT_CONTEXT.txt.
+6. Do not invent API keys, credentials, external service access, integrations, or successful deployments. Use .env.example placeholders and mock adapters where credentials are unavailable.
+7. Never commit secrets, real employee personal data, access tokens, private keys, or production credentials.
+8. Use synthetic/demo employee records and policy documents only. Make mock integrations clearly visible in the UI and documentation.
+9. Do not build a collection of impressive-looking but disconnected UI pages. Every important screen should be backed by working APIs and realistic states.
+10. Prefer a reliable end-to-end vertical slice over many partially implemented modules.
+11. Do not overengineer. This is a 48-hour AI innovation challenge. Build a well-structured, production-minded hackathon MVP, not a full enterprise HCM replacement.
+12. Before using a library or framework API, inspect its installed version and current official documentation. Avoid stale examples and do not guess method names.
+13. When you need to choose between several technical options, choose the least complex option that satisfies reliability, security, and demo requirements. Record significant choices as Architecture Decision Records (ADRs).
+14. Keep the user/team informed through concise implementation summaries, but do not stop after every minor file. Continue through the build milestones.
+15. Do not ask questions for details that can be safely handled with documented defaults. Ask only when a missing decision blocks a safe or coherent implementation.
+
+======================================================================
+1. REQUIRED PROJECT MEMORY / CONTINUOUS DOCUMENTATION FILE
+======================================================================
+
+Create and maintain this file at the repository root:
+
+PROJECT_CONTEXT.txt
+
+This file is mandatory. It is the living source of truth for the coding session and for future AI IDE sessions. It must be updated throughout development, not just created once.
+
+Before making any change in a new session, read PROJECT_CONTEXT.txt and the relevant README/docs. After every meaningful milestone or architectural change, update PROJECT_CONTEXT.txt.
+
+The file must always contain these sections:
+
+A. PROJECT SUMMARY
+- Product name and one-line pitch.
+- Problem being solved.
+- Target users and their roles.
+- Core value proposition.
+- Current implementation maturity.
+
+B. CURRENT ARCHITECTURE
+- Current repo/folder structure.
+- Frontend, API, workflow worker, AI service, database and vector store responsibilities.
+- Service-to-service communication paths.
+- Event names and event flow.
+- Where business state is persisted.
+- Where durable workflow state is held.
+- Where RAG documents/chunks/embeddings are stored.
+- Authentication and authorization design.
+- Which functionality is real and which is mocked.
+
+C. ARCHITECTURE DECISIONS
+For each meaningful decision record:
+- Decision ID and date.
+- Context/problem.
+- Decision taken.
+- Alternatives considered.
+- Reason for choosing it.
+- Consequences/trade-offs.
+Examples: Inngest owns durable business workflow orchestration; Postgres is source of truth; Qdrant stores policy vectors; AI service never directly writes timecard changes.
+
+D. IMPLEMENTED FEATURES
+Use a checklist. For each feature mark one of:
+[ ] Not started
+[~] In progress
+[x] Implemented and tested
+[!] Implemented but known issue exists
+Include relevant paths and tests.
+
+E. AGENTS AND WORKFLOWS
+- Each agent/component and its responsibilities.
+- Exact workflow/function names and trigger events.
+- Current step sequence.
+- Human approval/wait behavior.
+- Retry/failure behavior.
+- Idempotency keys and timeout rules.
+- Known gaps.
+
+F. DATA MODEL AND API CONTRACTS
+- Database tables/entities and important relationships.
+- API routes and request/response schemas.
+- Event names and payload schemas.
+- Schema/version information.
+
+G. ENVIRONMENT AND RUN COMMANDS
+- Required runtime versions.
+- Required environment variable NAMES only (never secret values).
+- How to install dependencies.
+- How to start each service.
+- How to run migrations/seeds.
+- How to run tests, lint and builds.
+- Local URLs/ports.
+
+H. TEST / QUALITY STATUS
+- Tests implemented and last known result.
+- Typecheck/lint/build status.
+- Important manual test scenarios.
+- Known bugs and risks.
+
+I. CURRENT WORK STATUS
+- Last completed milestone.
+- Current branch/task.
+- Files being changed.
+- Immediate next steps in priority order.
+- Any blocked work and why.
+
+J. CHANGE LOG
+Append dated entries after each meaningful milestone. Keep prior entries; do not erase history. Summarize changes, tests run, outcomes, decisions and remaining work.
+
+Update PROJECT_CONTEXT.txt after (at minimum): initial repository inspection, architecture setup, data model completion, first working vertical slice, each workflow implementation, AI/RAG integration, HITL implementation, frontend integration, tests, and final demo readiness.
+
+Also maintain:
+- README.md: setup, product overview, architecture summary, local run steps, demo flow, limitations.
+- docs/ARCHITECTURE.md: detailed architecture and diagrams.
+- docs/EVENT_CATALOG.md: event names and payload contracts.
+- docs/API_SPEC.md: API routes and examples.
+- docs/DEMO_SCRIPT.md: reliable 4–6 minute demo walkthrough.
+- docs/adr/: short architecture decision records for major choices.
+
+If PROJECT_CONTEXT.txt and code disagree, inspect the code, resolve the discrepancy, and update the file. Never leave stale architecture notes.
+
+======================================================================
+2. PRODUCT GOAL AND PROBLEM STATEMENT
+======================================================================
+
+PRODUCT NAME: AttendWise AI
+CATEGORY: Agentic AI-powered Time & Attendance Management and Exception Resolution
+
+ONE-LINE PITCH:
+AttendWise AI detects workforce attendance anomalies, investigates them using employee schedules and approved company policies, recommends evidence-backed resolutions, obtains human approval for consequential changes, and safely carries out authorized actions with a complete audit trail.
+
+THE PROBLEM:
+Organizations manage employees with different shifts, locations, work schedules, time zones, leave records, and attendance policies. HR and managers spend time reviewing exceptions such as:
+- Missing clock-in or clock-out punches.
+- Late arrivals and early departures.
+- Overtime anomalies or potentially unapproved overtime.
+- Conflicting or overlapping shifts.
+- Attendance marked absent despite approved leave.
+- Incomplete or inconsistent timecards.
+
+A traditional system can record punches and flag anomalies, but the investigation and resolution often remain manual. AttendWise adds an AI-assisted investigation and resolution layer.
+
+THE PRODUCT MUST NOT be represented as a replacement for a real Dayforce system or as a real payroll integration. It is a challenge prototype using synthetic data and clearly labelled simulated integrations. The product should demonstrate an architecture that could integrate with enterprise HR/time systems in a future phase.
+
+CORE PRODUCT PRINCIPLES:
+1. Detect with deterministic rules wherever possible.
+2. Investigate with contextual evidence, not guesses.
+3. Retrieve company policies using RAG and cite the exact source passages.
+4. Let AI recommend; let authorized humans approve consequential changes.
+5. Never silently modify a timecard or payroll-impacting value.
+6. Persist workflow progress and recover from transient failures.
+7. Make every important action observable and auditable.
+8. Keep business records in PostgreSQL as the source of truth.
+9. Use the AI service for reasoning and retrieval, not as the authority for permissions or final writes.
+10. Be explicit about uncertainty, missing evidence, and conflicting policy sources.
+
+======================================================================
+3. TARGET USERS AND ROLES
+======================================================================
+
+Implement role-based authorization. At minimum support:
+
+1. EMPLOYEE
+- View own shifts and attendance records.
+- View own attendance exceptions.
+- Confirm or dispute an attendance detail when requested.
+- Add a comment or evidence reference if supported by the demo UI.
+- View status and resolution history for own cases.
+- Cannot approve own correction or alter official records directly.
+
+2. MANAGER
+- View attendance and exceptions for employees assigned to them.
+- Review investigation evidence and policy citations.
+- Approve, reject, or request more information for assigned cases.
+- Add mandatory comments for rejection or requested information where appropriate.
+- Cannot approve outside their scope.
+
+3. HR_ADMIN
+- View organization-level attendance and exceptions.
+- Manage employees, shifts, policy documents and cases.
+- Reassign/escalate cases.
+- Review audit history.
+- May perform explicitly permissioned administrative actions, all audited.
+
+4. SYSTEM_ADMIN
+- Manage demo configuration and user roles.
+- View system/workflow health and failed runs.
+- Cannot bypass audit requirements.
+
+For a fast demo, implement a seed-user/role switcher only in development mode if a real identity provider is not configured. The development role switcher must be disabled outside development. Prefer Clerk if already configured or if the existing project uses it; otherwise implement a clean authentication adapter and documented local demo auth. All authorization checks must be enforced by the backend, not just hidden in the frontend.
+
+======================================================================
+4. RECOMMENDED SYSTEM ARCHITECTURE AND SERVICE BOUNDARIES
+======================================================================
+
+Use a pragmatic service-oriented architecture with a small number of deployable services. Do NOT create a separate network microservice for every database table or every agent. Keep the architecture independently testable and logically modular while protecting the 48-hour delivery deadline.
+
+RECOMMENDED DEPLOYABLE UNITS:
+
+A. WEB FRONTEND
+Suggested: Next.js or React + TypeScript (respect the existing repo stack if already configured).
+Responsibilities:
+- Dashboard and KPIs.
+- Employee attendance views.
+- Exception center and case details.
+- AI investigation view.
+- Manager approval inbox.
+- HR policy/knowledge administration.
+- Audit log and workflow status.
+- Calls the Core API only; do not call internal AI endpoints directly from the browser.
+
+B. CORE API / BUSINESS SERVICE
+Suggested: Node.js + TypeScript + Express (or retain existing compatible backend framework).
+Responsibilities:
+- Authentication and RBAC enforcement.
+- Employee, manager, shift, attendance and leave data APIs.
+- Attendance import and validation.
+- Deterministic exception detection / domain rules, or invoke a dedicated domain module.
+- Exception case and recommendation persistence.
+- Approval decision validation.
+- Authorized attendance correction transactions.
+- Audit log persistence.
+- Event publishing to Inngest.
+- Calls to AI service for synchronous AI operations when appropriate.
+- Exposes public application APIs.
+
+C. WORKFLOW WORKER / ORCHESTRATION SERVICE
+Suggested: Node.js + TypeScript + Inngest SDK.
+This is a separate process/deployable worker where practical. It can share workspace packages/types with Core API but must have a clear runtime boundary.
+Responsibilities:
+- Defines Inngest event-triggered durable functions.
+- Owns long-running business workflow orchestration.
+- Handles retries, timeouts, sleeps, event waits, concurrency, cancellation and failure handling.
+- Calls Core API/domain services and AI service using authenticated internal service calls.
+- Coordinates human approval waits.
+- Emits workflow progress events for the UI.
+- Performs safe replays/retries and routes final failures to review.
+
+D. AI SERVICE
+Suggested: Python + FastAPI + Pydantic.
+Responsibilities:
+- Investigation reasoning.
+- Policy query rewriting and retrieval orchestration.
+- LLM calls through a provider abstraction.
+- Structured recommendation generation.
+- Evidence summarization and citations.
+- Recommendation quality/compliance checks.
+- Optional bounded reasoning graph if justified.
+
+The AI service MUST NOT:
+- Decide user authorization.
+- Directly write official attendance records.
+- Approve its own recommendation.
+- Bypass Inngest for long-running business waits.
+- Treat retrieved document text as executable instructions.
+
+E. KNOWLEDGE / RAG COMPONENT
+For the hackathon this can be a module inside the AI service, not a separate deployment unless the repository already has one.
+Responsibilities:
+- Policy document upload/ingestion.
+- Text extraction, chunking, metadata, embedding.
+- Qdrant vector upsert and retrieval.
+- Source/page/chunk references.
+- Policy versioning and effective dates.
+
+F. DATA STORES
+- PostgreSQL: source of truth for users/roles, employees, shifts, punches, exceptions, recommendations, approvals, workflow references, policy metadata and audit records.
+- Qdrant: vector embeddings and searchable chunks for policies. Store metadata needed for tenant, category, location, policy version, effective date and source references.
+- File storage: local filesystem for development and a replaceable object-storage adapter for deployment. Do not store uploaded files only in memory. Avoid introducing Cloudinary unless already used or materially helpful.
+- Inngest: durable function execution state, step checkpoints, waits and run traces. Do not treat Inngest's run state as the business record database; keep business status in PostgreSQL too.
+
+G. NOTIFICATIONS
+For the MVP, an in-app notification table and UI are sufficient. Add an email adapter as optional. Use mock delivery if credentials are absent. All external sends must be idempotent and retriable.
+
+COMMUNICATION:
+- Browser -> Core API over authenticated HTTP.
+- Core API -> PostgreSQL via ORM/query layer.
+- Core API -> Inngest by sending versioned domain events.
+- Inngest worker -> AI service over authenticated internal HTTP.
+- AI service -> Qdrant for policy search and embeddings.
+- AI service -> LLM provider via configurable adapter.
+- Inngest worker -> Core API for approved business commands or domain service operations.
+- Core API -> PostgreSQL transaction for final attendance correction and audit.
+
+Do not let frontend, AI service or Inngest worker bypass the Core API's authorization/domain rules for official business mutations. For trusted internal workflows, use narrowly scoped service credentials and verify the action is permitted by the workflow state.
+
+======================================================================
+5. CRITICAL ORCHESTRATION DECISION: INNGEST OWNS DURABLE BUSINESS WORKFLOWS
+======================================================================
+
+Use Inngest as the primary durable workflow orchestration engine.
+
+WHY INNGEST:
+- Attendance exception resolution can span minutes, hours or days.
+- Some steps call LLMs or external services and may fail transiently.
+- Manager/employee approvals require the workflow to pause without holding a server process open.
+- A rejected decision, missing response or timeout must take a defined branch.
+- Completed steps should not be repeated unnecessarily after a later failure.
+- The team needs run traces to explain what happened during the demo.
+
+IMPORTANT SEPARATION OF RESPONSIBILITIES:
+- Inngest = outer business workflow orchestration, durable execution, retries, event waits, scheduled follow-up, concurrency controls, failure handling and resume logic.
+- AI agents = bounded reasoning tasks called as discrete workflow steps (investigate, retrieve context, propose resolution, review output).
+- Core API = source of truth and authority for domain writes, RBAC and approval decisions.
+- PostgreSQL = source of truth for business data and case state.
+- Qdrant = vector retrieval store.
+
+DO NOT build two competing long-running orchestration systems. Do not put a multi-day human approval wait inside a Python process or an in-memory LangGraph run.
+
+LANGGRAPH POLICY:
+Default: do not add LangGraph to the MVP unless there is a concrete need for a cyclic reasoning graph that cannot be represented cleanly as a sequence of Inngest steps.
+If LangGraph is used, keep it bounded inside one AI-service operation for a short reasoning subgraph. Inngest must still own the durable outer workflow, approval wait, retries and resume. Do not use LangGraph checkpointing as a second source of truth for long-running business process state. Document why it is present.
+
+INNGEST IMPLEMENTATION REQUIREMENTS:
+- Use the current official Inngest TypeScript SDK/API version compatible with the project.
+- Verify syntax against official documentation before coding. Do not copy outdated v3 examples into a v4 project or vice versa.
+- Use stable, descriptive function IDs and stable step IDs.
+- Put every side effect (database mutation, HTTP request with external effect, notification send, file write, event send) in a durable step or in a safe idempotent command invoked from a durable step.
+- Keep pure deterministic calculations outside side-effect steps where appropriate.
+- Use step.waitForEvent for human/employee response waits. Use a unique correlation key and match tenantId, exceptionId, approvalId and workflow/run identity as appropriate.
+- Use step.sleep / step.sleepUntil for scheduled delays rather than setTimeout or in-process timers.
+- Use step.sendEvent for reliable downstream event emission from a workflow step.
+- Use step.invoke only where useful to compose reusable durable functions; avoid unnecessary nested complexity.
+- Configure concurrency/rate limits to protect the AI provider, Qdrant and downstream services.
+- Support cancellation when an exception is resolved manually, withdrawn, superseded or no longer valid.
+- Use Inngest failure handlers / onFailure or the current SDK equivalent to capture exhausted failures and persist a reviewable failure status.
+- Use NonRetriableError (or current equivalent) for permanent business/validation errors that will not improve on retry.
+- Retry only transient failures: network failures, provider 429/5xx, temporary database/network faults, etc.
+- Never retry invalid input, missing required data, unauthorized approval, unsupported policy state or deterministic schema violations without a correction path.
+- Use backoff/retry configuration supported by the installed SDK; make it configurable and document it.
+- Store `inngestRunId`/function ID/thread ID references on the relevant workflow/case record where available, but never use a run ID as the only business identifier.
+- Use stable idempotency keys for every business write and external notification. Inngest retries do not automatically guarantee exactly-once side effects.
+- Protect against duplicate events and duplicate function runs using event IDs/function idempotency and database unique constraints.
+- Make workflows safe when an event arrives twice or out of order.
+- Make workflow event payloads versioned and validated.
+
+OFFICIAL DOCUMENTATION TO CHECK BEFORE IMPLEMENTING:
+- https://www.inngest.com/docs
+- https://www.inngest.com/docs/durable-execution
+- https://www.inngest.com/docs/durable-execution/primitives
+- https://www.inngest.com/docs/durable-execution/durable-agents/human-in-the-loop
+- https://www.inngest.com/docs/durable-execution/guides-and-advanced/error-handling
+- https://www.inngest.com/docs/durable-execution/guides-and-advanced/idempotency
+- https://www.inngest.com/docs/durable-execution/best-practices
+
+======================================================================
+6. BUSINESS FEATURES AND MVP SCOPE
+======================================================================
+
+Build the features in priority order.
+
+P0 — REQUIRED FOR A COMPLETE DEMO:
+1. Seed employee profiles and manager relationships.
+2. Shift schedules including date and timezone fields.
+3. Attendance records with clock-in and clock-out timestamps.
+4. CSV import or seeded sample data.
+5. Deterministic exception detection for:
+   - Missing clock-out.
+   - Late arrival based on configurable grace period.
+   - Overtime threshold exceeded / possible unauthorized overtime.
+6. Exception center with status, severity, employee, date and exception type filters.
+7. Exception details page with timeline and raw facts.
+8. AI investigation summary based on structured facts.
+9. Policy RAG with citations to actual uploaded/seeded policy passages.
+10. Resolution recommendation with rationale, evidence, uncertainty and next action.
+11. Human approval inbox for manager/HR.
+12. Approve / reject / request-more-information path.
+13. Durable Inngest wait and resume workflow.
+14. Authorized mock attendance correction after approval only.
+15. Audit log containing original value, proposed value, decision, approver, reason and timestamps.
+16. Dashboard KPIs and workflow status.
+17. Synthetic demo data and at least one complete demo scenario.
+
+P1 — ADD IF CORE SLICE IS STABLE:
+- Early departure detection.
+- Shift overlap/conflict detection.
+- Approved leave but absent mismatch.
+- Employee confirmation/dispute workflow.
+- In-app notification center.
+- Policy document upload and re-indexing UI.
+- HR case reassignment/escalation.
+- CSV export.
+- Department-level analytics.
+
+P2 — DO NOT PRIORITIZE BEFORE CORE DEMO WORKS:
+- Real biometric device integration.
+- Real payroll integration.
+- Real enterprise HRIS/Dayforce integration.
+- Complex mobile app.
+- Predictive absence modeling.
+- Multi-tenant enterprise billing.
+- Custom model training or fine-tuning.
+- Elaborate multi-agent framework for its own sake.
+
+DEMO SAFETY:
+All corrections affect mock attendance records only. Clearly label demo data and simulated integrations. Do not claim to connect to Dayforce production systems.
+
+======================================================================
+7. ATTENDANCE DOMAIN RULES AND EXCEPTION TYPES
+======================================================================
+
+Create deterministic, testable rule functions. All thresholds should be configurable rather than hard-coded in scattered modules.
+
+A. MISSING_CLOCK_OUT
+Condition: a scheduled attendance record has a clock-in but no clock-out after the configured expected end time plus a configurable grace period or processing window.
+Do not create an exception prematurely while the shift is still in progress.
+
+B. MISSING_CLOCK_IN
+Condition: a scheduled employee has no clock-in record after the configured grace period.
+Avoid treating approved leave, holidays, rest days or schedule changes as absence.
+
+C. LATE_ARRIVAL
+Condition: actual clock-in is after scheduled start time plus configured grace period.
+Store scheduled start, actual start, grace period and calculated lateness minutes.
+
+D. EARLY_DEPARTURE
+Condition: actual clock-out is earlier than scheduled end minus a configured permitted threshold.
+
+E. OVERTIME_REVIEW
+Condition: actual recorded hours exceed a configurable threshold or policy-derived threshold.
+Do not conclude that overtime is approved or payable. Flag for policy/manager review.
+
+F. SHIFT_CONFLICT
+Condition: overlapping shifts or contradictory schedule assignments exist.
+
+G. LEAVE_ATTENDANCE_MISMATCH
+Condition: attendance is missing or marked absent while an approved leave record overlaps the scheduled shift.
+
+TIME AND DATE CORRECTNESS:
+- Store timestamps in UTC in the database.
+- Store the employee/location IANA timezone for local display and schedule interpretation.
+- Use timezone-aware date/time logic and daylight-saving-aware libraries.
+- Support overnight shifts where a shift ends on the following calendar date.
+- Do not calculate durations using naive local timestamps.
+- Define breaks explicitly. Do not subtract unpaid breaks unless represented in the shift/attendance model or configured policy.
+- Include boundary tests for exactly-at-shift-start, exactly-at-grace-limit, overnight shifts, daylight saving transitions where applicable, and missing punches.
+- Do not infer a missing punch time from historical averages or AI model guesses. A proposed time must have a stated source/evidence and require approval.
+
+EXCEPTION SEVERITY:
+Use a simple configurable severity model (LOW, MEDIUM, HIGH) based on type and business rules. Do not use an LLM to determine severity where deterministic rules can do so.
+
+EXCEPTION STATUS LIFECYCLE:
+DETECTED -> INVESTIGATING -> WAITING_FOR_EMPLOYEE (optional) -> WAITING_FOR_APPROVAL -> APPROVED / REJECTED / NEEDS_MORE_INFO -> RESOLVED / ESCALATED / FAILED / CANCELLED.
+Use a documented transition map and enforce it in backend/domain code. Do not allow arbitrary client-provided status changes.
+
+======================================================================
+8. AI AGENTS AND THEIR EXACT RESPONSIBILITIES
+======================================================================
+
+Use a small set of meaningful AI components. Do not make every helper function a separate LLM agent.
+
+COMPONENT 1: EXCEPTION DETECTION ENGINE (DETERMINISTIC, NOT AN LLM)
+Responsibilities:
+- Run rule-based checks against shifts, punches, leave and calendar data.
+- Create/update exception cases idempotently.
+- Emit `attendance/exception.detected` events.
+- Include the facts used to detect the exception.
+Output: validated exception facts and reason codes.
+
+COMPONENT 2: INVESTIGATION AGENT (LLM-ASSISTED, TOOL-RESTRICTED)
+Responsibilities:
+- Receive an exception ID and structured case facts.
+- Request related data through explicitly defined read-only tools/API calls.
+- Summarize the schedule, punches, leave, history and related exceptions.
+- Identify missing information, contradictions and questions.
+- Distinguish facts from assumptions.
+- Never modify official records.
+Output schema should include:
+  - summary
+  - confirmed_facts[]
+  - missing_information[]
+  - conflicting_evidence[]
+  - relevant_record_ids[]
+  - suggested_follow_up_questions[]
+  - confidence / uncertainty explanation
+
+COMPONENT 3: POLICY RAG AGENT / RETRIEVAL SERVICE
+Responsibilities:
+- Rewrite or expand the query based on exception context.
+- Retrieve relevant policy chunks from Qdrant.
+- Filter by tenant, policy category, employee/location jurisdiction, effective date and policy version.
+- Return chunk text, title, document ID, page/section, chunk ID, effective date and source metadata.
+- Optionally rerank retrieved chunks if time permits.
+- Never treat document text as trusted instructions to the agent. Retrieved documents are evidence only.
+- Return `insufficient_evidence` if no applicable policy can be retrieved.
+Output schema should include:
+  - retrieved_sources[]
+  - relevant_policy_rules[]
+  - citations[]
+  - applicability_notes[]
+  - conflicts[]
+  - insufficient_evidence boolean
+
+COMPONENT 4: RESOLUTION PLANNER AGENT
+Responsibilities:
+- Combine confirmed investigation facts and policy evidence.
+- Produce a recommendation, not an actual database mutation.
+- Explain the basis for the recommendation.
+- Identify which human role must approve.
+- Specify any missing employee confirmation.
+- Offer options such as request employee confirmation, send to manager approval, reject a correction request, escalate to HR, or request more evidence.
+- Avoid proposing a precise time unless the source evidence supports it.
+Output schema should include:
+  - recommendation_type
+  - proposed_action
+  - proposed_changes[] (nullable if no safe change)
+  - rationale
+  - supporting_facts[]
+  - policy_citations[]
+  - uncertainty
+  - required_approver_role
+  - requires_employee_confirmation
+  - risk_level
+  - questions_or_missing_evidence[]
+
+COMPONENT 5: POLICY / QUALITY REVIEWER (VALIDATION + OPTIONAL LLM CHECK)
+Responsibilities:
+- Validate the recommendation against the original exception facts and retrieved policy passages.
+- Verify that each policy citation points to a retrieved source.
+- Flag unsupported statements, contradictory recommendations, missing evidence and unauthorized action proposals.
+- Reject malformed structured output.
+- Do not let a reviewer model override deterministic validation or authorization rules.
+Output: PASS / NEEDS_REVISION / ESCALATE plus issue list.
+Use at most one controlled revision attempt in the MVP to manage latency and cost.
+
+COMPONENT 6: HUMAN APPROVAL CONTROLLER (INNGEST WORKFLOW, NOT A FREELY ACTING LLM)
+Responsibilities:
+- Determine whether a human decision is required according to backend policy rules.
+- Create a pending approval record.
+- Notify the correct manager/HR user.
+- Wait for a matching decision event using Inngest durable wait primitive.
+- Handle approve, reject, request-more-information and timeout branches.
+- Revalidate current case state, approver authorization and record version before resuming the action.
+
+COMPONENT 7: EXECUTION / DOMAIN COMMAND (DETERMINISTIC BACKEND SERVICE, NOT AN AUTONOMOUS AGENT)
+Responsibilities:
+- Apply a proposed correction only after valid authorization and a current version check.
+- Use a database transaction and idempotency key.
+- Save before/after snapshots.
+- Update exception status.
+- Add immutable audit event.
+- Emit resolution event.
+- Never trust a raw LLM instruction for SQL or direct execution.
+
+COMPONENT 8: NOTIFICATION / FOLLOW-UP SERVICE (DETERMINISTIC)
+Responsibilities:
+- Create in-app notifications.
+- Optionally send email via configured provider.
+- Retry transient failures with Inngest.
+- Deduplicate with stable notification keys.
+- Escalate when configured deadlines expire.
+
+LLM OUTPUT REQUIREMENTS:
+- Use Pydantic models / JSON Schema for all AI outputs.
+- Validate all outputs before they enter business workflows.
+- Use structured output / tool calling where supported by the selected provider.
+- Treat model output as untrusted input.
+- Never execute generated SQL, shell commands, arbitrary code, or unrestricted API calls.
+- Keep prompts versioned in source control.
+- Log model/provider/model version, prompt version, latency, token usage where available, and a sanitized trace ID; do not log sensitive personal data unnecessarily.
+- Implement bounded timeouts, bounded token budgets and a maximum number of reasoning/revision passes.
+
+======================================================================
+9. RAG / POLICY KNOWLEDGE DESIGN
+======================================================================
+
+The product needs a realistic policy knowledge base. Seed synthetic documents such as:
+- Attendance and Timekeeping Policy.
+- Missing Punch Correction Procedure.
+- Grace Period and Late Arrival Policy.
+- Overtime Authorization Policy.
+- Shift Scheduling and Overnight Shift Guide.
+- Leave and Holiday Calendar Policy.
+- Manager Approval Matrix.
+
+These must be clearly labeled synthetic demo policies, not real Dayforce policies or legal advice.
+
+INGESTION FLOW:
+1. Authorized HR admin uploads a PDF/DOCX/TXT file or uses seeded sample docs.
+2. API validates file type, size and user permissions.
+3. Store the original file in configured file storage.
+4. Emit `knowledge/document.uploaded` event.
+5. Inngest workflow starts ingestion.
+6. AI service extracts text and structure.
+7. Chunk by headings/paragraphs while preserving source page/section information.
+8. Add metadata: tenantId, documentId, title, category, version, effectiveFrom, effectiveTo, location, department, page, section, chunkId, checksum.
+9. Generate embeddings through a configurable embedding provider.
+10. Upsert vectors to Qdrant using deterministic IDs so re-ingestion does not create duplicates.
+11. Update PostgreSQL document/chunk ingestion status.
+12. Mark document READY only after all required chunks are indexed; otherwise mark FAILED/PARTIAL and allow a safe retry.
+
+RETRIEVAL FLOW:
+1. Build query from exception type, employee location, shift facts and issue.
+2. Apply metadata filtering before or during retrieval.
+3. Retrieve top-K chunks.
+4. Optionally rerank top candidates.
+5. Check effective dates and conflicting policy versions.
+6. Return citations with exact document/page/section/chunk identifiers.
+7. Pass only relevant evidence to resolution agent.
+8. If evidence is absent or conflicting, do not guess; request HR review.
+
+RAG QUALITY:
+- Include a small retrieval evaluation dataset with known questions and expected source documents.
+- Measure Recall@K / Precision@K where practical and manually verify citations in the demo dataset.
+- Ensure generated policy statements are supported by the cited chunk.
+- Keep policy retrieval separate from attendance calculations.
+- Use dense retrieval first; add hybrid search/reranking only after MVP works.
+
+QDRANT COLLECTION DESIGN:
+Use a documented collection name and vector dimension based on the configured embedding model. Store payload metadata for tenant, document ID, category, effective dates, location, policy version, page/section and chunk ID. Never hardcode a vector dimension that conflicts with the selected embedding model.
+
+======================================================================
+10. INNGEST EVENT CATALOG AND DURABLE WORKFLOWS
+======================================================================
+
+Create a typed event catalog (shared TypeScript types/Zod schemas or equivalent). Every event must have a stable name, version, correlation ID and validated payload. Include tenantId even if the demo has only one tenant, so the design does not accidentally mix organizations.
+
+CORE EVENT NAMES (adapt names consistently, do not create duplicates with slightly different naming):
+- `attendance/import.requested`
+- `attendance/records.imported`
+- `attendance/scan.requested`
+- `attendance/exception.detected`
+- `attendance/exception.investigation.requested`
+- `attendance/employee-confirmation.requested`
+- `attendance/employee-confirmation.submitted`
+- `attendance/recommendation.created`
+- `attendance/approval.requested`
+- `attendance/approval.decision-submitted`
+- `attendance/correction.approved`
+- `attendance/correction.applied`
+- `attendance/correction.rejected`
+- `attendance/exception.resolved`
+- `attendance/exception.escalated`
+- `attendance/exception.cancelled`
+- `attendance/workflow.failed`
+- `knowledge/document.uploaded`
+- `knowledge/document.indexed`
+- `knowledge/document.indexing-failed`
+- `notification/requested`
+- `notification/sent`
+- `notification/failed`
+
+Use consistent naming style in actual implementation and document final names in docs/EVENT_CATALOG.md.
+
+WORKFLOW A: ATTENDANCE IMPORT
+Trigger: `attendance/import.requested`.
+Steps:
+1. Validate import metadata and permission.
+2. Retrieve file from storage.
+3. Parse and normalize rows.
+4. Validate employee IDs, shift references, timestamps and timezone.
+5. Reject or quarantine invalid rows with row-level reasons.
+6. Upsert valid punches/records idempotently.
+7. Persist import summary.
+8. Emit `attendance/records.imported` and `attendance/scan.requested`.
+Failure handling: retry transient storage/database issues; do not retry invalid file/schema errors; persist import failure details; allow admin retry after correction.
+
+WORKFLOW B: EXCEPTION SCAN
+Trigger: `attendance/scan.requested` or scheduled trigger.
+Steps:
+1. Fetch eligible shifts/attendance/leave records for a date range.
+2. Run deterministic detection rules.
+3. Upsert exception cases using a stable dedupe key such as tenant + employee + shift/date + exception type + record version.
+4. Emit `attendance/exception.detected` per new/updated case.
+5. Save scan summary and counts.
+Controls: paginate/batch data, limit concurrency and avoid duplicate exception creation.
+
+WORKFLOW C: INVESTIGATE AND RECOMMEND (PRIMARY DEMO WORKFLOW)
+Trigger: `attendance/exception.detected` or manual re-investigation event.
+Steps:
+1. Load exception, employee, shift, punch, leave and prior case data from Core API.
+2. Verify case is still open and not already resolved/cancelled.
+3. Set status to INVESTIGATING using a guarded state transition.
+4. Call Investigation Agent through AI service.
+5. Validate investigation JSON output.
+6. Call Policy RAG retrieval with case context.
+7. Validate policy sources, effective dates and citations.
+8. Call Resolution Planner with structured facts and evidence.
+9. Validate recommendation with Pydantic/JSON Schema and deterministic rules.
+10. Run Policy/Quality Reviewer.
+11. If reviewer says NEEDS_REVISION, allow one bounded revision; if still invalid, set NEEDS_HUMAN_REVIEW and escalate.
+12. Persist investigation result, evidence, citations and recommendation.
+13. Decide required approval role using deterministic backend policy.
+14. Emit `attendance/approval.requested` and continue into approval workflow, or route low-risk read-only outcomes as configured.
+15. Emit workflow progress updates for UI.
+Failures: transient LLM/network errors retry the failing step only; malformed outputs get bounded repair/retry then escalate; missing evidence escalates; permanent invalid case data is non-retriable.
+
+WORKFLOW D: EMPLOYEE CONFIRMATION (OPTIONAL P1)
+Trigger: request emitted by investigation/resolution workflow.
+Steps:
+1. Create confirmation request with expiry and unique correlation ID.
+2. Notify employee.
+3. Wait for matching `attendance/employee-confirmation.submitted` event with timeout.
+4. If confirmed, persist response and resume investigation/resolution.
+5. If disputed, attach employee statement and route to manager/HR.
+6. If no answer by deadline, remind once (or a configured bounded number), then escalate.
+Do not treat silence as confirmation.
+
+WORKFLOW E: HUMAN APPROVAL (PRIMARY HITL)
+Trigger: `attendance/approval.requested`.
+Steps:
+1. Validate recommendation is still pending and exception is still open.
+2. Create approval record with unique approvalId, required role, assigned approver/manager, expiry, status PENDING and case version.
+3. Create in-app notification and optionally email.
+4. Set exception/workflow status WAITING_FOR_APPROVAL.
+5. Wait with Inngest `step.waitForEvent` (or current official equivalent) for `attendance/approval.decision-submitted` matching approvalId + exceptionId + tenantId and appropriate correlation.
+6. On timeout, mark approval EXPIRED, escalate to HR or manager's manager, notify relevant users and end safely or start a follow-up workflow.
+7. On decision, validate the event signature/source through Core API, role, manager scope, current case version, approval expiry and allowed transition. Do not trust browser-provided role/tenant/approver identifiers.
+8. APPROVE: call Core API command to apply proposed change using idempotency key and optimistic concurrency check.
+9. REJECT: preserve original record, store reason, mark REJECTED or NEEDS_REVIEW and notify employee/HR according to policy.
+10. REQUEST_MORE_INFO: create follow-up request, notify employee, and start/continue employee confirmation workflow. Resume investigation after response.
+11. Record immutable audit event for every decision.
+12. Emit correction/resolution events and notify stakeholders.
+Human decision waits must not hold open an HTTP request or an in-memory worker. The workflow must survive deploy/restart.
+
+WORKFLOW F: CORRECTION EXECUTION
+Trigger: approved command/event, or invoked as a durable step from Workflow E.
+Steps:
+1. Re-fetch current record and validate version/eligibility.
+2. Check approval record is valid and unused.
+3. Calculate/apply allowed correction in a PostgreSQL transaction.
+4. Use stable idempotency key e.g. `attendance-correction:{exceptionId}:{recommendationId}:{approvalId}`.
+5. Save previous and new values, source evidence, approver, timestamp and reason.
+6. Mark approval consumed and exception resolved in same transaction where possible.
+7. Emit `attendance/correction.applied` and `attendance/exception.resolved`.
+8. Notify employee/manager.
+If record version changed between recommendation and approval, do not overwrite newer data. Mark STALE_REVIEW_REQUIRED and rerun/review.
+
+WORKFLOW G: POLICY INGESTION
+Trigger: `knowledge/document.uploaded`.
+Steps: parse -> validate -> chunk -> embed -> upsert Qdrant -> save indexing metadata -> mark READY -> emit indexed event.
+Make operations idempotent by document version/checksum/chunk ID. Keep old policy versions identifiable; do not silently overwrite historical documents used by prior decisions.
+
+WORKFLOW H: REMINDERS AND ESCALATIONS
+Trigger: approval or confirmation created; optionally scheduled scan.
+- Wait until reminder interval using durable sleep.
+- Check whether request is still pending.
+- Send reminder idempotently.
+- Wait for decision or next deadline.
+- Escalate after configured deadline.
+- Stop if case is resolved, cancelled or superseded.
+Avoid infinite reminders. Make max reminder count configurable.
+
+WORKFLOW I: ANALYTICS AGGREGATION (OPTIONAL)
+Run on a schedule or after resolved events. Aggregate metrics from PostgreSQL. Do not ask an LLM to calculate KPIs. Store time-windowed aggregates only if necessary; for demo, simple indexed queries may be enough.
+
+WORKFLOW J: GLOBAL FAILURE HANDLING
+For every workflow:
+- Capture function ID, run ID, event ID, tenant ID, case ID, step name and error category.
+- Distinguish retryable transient errors from permanent business errors.
+- After exhausted retries, persist a failed/review-needed state and emit a failure event.
+- Provide an admin-visible failed workflow list or a documented Inngest dashboard route.
+- Allow a safe manual retry/replay action after the underlying issue is fixed.
+- Never retry a business write with a new idempotency key just to force it through.
+- Never silently mark an item successful after an error.
+
+======================================================================
+11. RETRIES, FAILURE MANAGEMENT, IDEMPOTENCY AND CONCURRENCY
+======================================================================
+
+This is a critical engineering requirement. Build it deliberately, not as an afterthought.
+
+ERROR CLASSIFICATION:
+1. TRANSIENT:
+- Network timeout.
+- Temporary DNS/connectivity failure.
+- LLM provider 429 rate limit or 5xx.
+- Temporary Qdrant unavailability.
+- Temporary database connection failure.
+Action: retry with bounded backoff and appropriate retry count.
+
+2. PERMANENT / NON-RETRIABLE:
+- Invalid request schema.
+- Unknown employee/shift ID after authoritative lookup.
+- Unsupported exception type.
+- User lacks approval permission.
+- Approval is expired or already consumed.
+- Policy not applicable and no safe alternative exists.
+Action: mark appropriate state and route for correction/review; do not repeatedly retry.
+
+3. NEEDS-HUMAN-REVIEW:
+- Policy evidence is missing or contradictory.
+- Employee disputes the recorded time.
+- No reliable evidence supports a proposed correction.
+- AI reviewer flags unsupported reasoning.
+Action: stop automatic progression and ask a human.
+
+4. STALE/CONFLICT:
+- Attendance record changed after recommendation.
+- Approval references an older case version.
+- Two managers attempt conflicting decisions.
+Action: use optimistic concurrency/transaction checks; reject stale command and require re-investigation.
+
+IDEMPOTENCY:
+- Give every event/business occurrence a stable identifier.
+- Use unique DB constraints for deduplicated exception cases and approval decisions.
+- Use stable command idempotency keys for corrections and notifications.
+- Store processed command/event IDs where necessary.
+- Make notification sends idempotent.
+- Remember that durable workflow retries do not guarantee external side effects happened exactly once. A request may succeed externally but time out before the workflow records its result. The receiving service must deduplicate.
+
+CONCURRENCY:
+- Limit concurrent LLM calls.
+- Limit concurrent policy ingestion/embed batches.
+- Prevent multiple active correction workflows for the same attendance record where appropriate.
+- Use tenant/case-level concurrency or database row locks/version checks where appropriate.
+- Configure Inngest concurrency/rate-limit controls using the current SDK.
+- Do not serialize all unrelated employee workflows unnecessarily.
+
+TIMEOUTS:
+- Set explicit HTTP timeouts between services.
+- Set LLM connect/read/overall timeouts.
+- Set approval deadlines and employee-confirmation deadlines.
+- Use durable waits, not setTimeout.
+- Define timeout behavior for every wait.
+
+OBSERVABILITY:
+- Structured JSON logs.
+- Correlation ID across browser/API/Inngest/AI service.
+- Trace IDs and case IDs.
+- Inngest run traces.
+- Metrics: workflow success/failure, retry counts, AI latency, retrieval duration, pending approval age, exception resolution time.
+- Do not log full private employee documents or sensitive PII in prompts/logs by default.
+
+======================================================================
+12. DATA MODEL DETAILS AND DATABASE RULES
+======================================================================
+
+Design a normalized relational schema. Use Prisma or an equivalent ORM if suitable for the existing stack.
+
+Minimum entities (adapt field names but document final schema):
+
+Tenant:
+- id, name, timezone, createdAt.
+
+User:
+- id, authProviderId, tenantId, email, displayName, role, isActive, createdAt.
+
+Employee:
+- id, tenantId, userId nullable, employeeCode, firstName, lastName, email, department, jobTitle, managerEmployeeId nullable, location, timezone, employmentStatus, createdAt.
+
+Shift:
+- id, tenantId, employeeId, localDate, timezone, scheduledStartUtc, scheduledEndUtc, breakMinutes, shiftType, status, version.
+
+AttendanceRecord:
+- id, tenantId, employeeId, shiftId, clockInUtc nullable, clockOutUtc nullable, source, status, version, createdAt, updatedAt.
+
+LeaveRecord (optional MVP/P1):
+- id, tenantId, employeeId, startUtc, endUtc, leaveType, status, approvedBy.
+
+ExceptionCase:
+- id, tenantId, employeeId, shiftId, attendanceRecordId, exceptionType, severity, status, dedupeKey, factsJson, version, detectedAt, resolvedAt nullable, assignedManagerId nullable.
+
+Investigation:
+- id, exceptionId, workflowRunId, summary, confirmedFactsJson, missingInfoJson, conflictsJson, createdAt.
+
+PolicyDocument:
+- id, tenantId, title, category, version, effectiveFrom, effectiveTo, location, storageKey, checksum, ingestionStatus, uploadedBy, createdAt.
+
+PolicyChunk (metadata only if needed):
+- id, documentId, chunkIndex, page, section, textHash, qdrantPointId, metadataJson.
+
+Recommendation:
+- id, exceptionId, investigationId, recommendationType, proposedAction, proposedChangesJson, rationale, evidenceJson, citationsJson, riskLevel, status, createdAt.
+
+Approval:
+- id, tenantId, exceptionId, recommendationId, approvalIdempotencyKey, requiredRole, assignedApproverId, status, decision, decisionComment, requestedAt, expiresAt, decidedAt, caseVersion, consumedAt.
+
+WorkflowRun:
+- id, tenantId, exceptionId nullable, workflowType, inngestRunId, functionId, status, currentStage, lastErrorCode nullable, startedAt, completedAt nullable.
+
+AuditLog:
+- id, tenantId, actorType, actorId nullable, action, entityType, entityId, beforeJson, afterJson, reason, correlationId, createdAt.
+
+Notification:
+- id, tenantId, recipientUserId, type, title, body, relatedEntityType, relatedEntityId, idempotencyKey, status, readAt, createdAt.
+
+IMPORTANT DATABASE RULES:
+- Use tenantId on tenant-owned records.
+- Add indexes for employee/date, exception status/type, manager approval inbox, event/dedupe keys and audit timeline.
+- Use foreign keys and constraints.
+- Use transactions for correction + approval consumption + exception status + audit log.
+- Use optimistic concurrency with version columns or equivalent.
+- Keep audit logs append-only at application level.
+- Never hard delete attendance history in the demo; use correction/reversal records.
+- Do not let an AI-generated proposedChanges JSON be applied without strict schema validation and an allowlisted command handler.
+
+======================================================================
+13. API DESIGN
+======================================================================
+
+Implement versioned REST APIs with consistent error responses and validation.
+
+AUTH / USERS:
+- GET /api/v1/me
+- GET /api/v1/users (admin scoped)
+
+EMPLOYEES:
+- GET /api/v1/employees
+- POST /api/v1/employees
+- GET /api/v1/employees/:employeeId
+- PATCH /api/v1/employees/:employeeId
+
+SHIFTS:
+- GET /api/v1/shifts
+- POST /api/v1/shifts
+- PATCH /api/v1/shifts/:shiftId
+
+ATTENDANCE:
+- GET /api/v1/attendance
+- GET /api/v1/attendance/:recordId
+- POST /api/v1/attendance/import
+- POST /api/v1/attendance/scan
+- POST /api/v1/attendance/:recordId/employee-confirmation (where applicable)
+
+EXCEPTIONS:
+- GET /api/v1/exceptions
+- GET /api/v1/exceptions/:exceptionId
+- POST /api/v1/exceptions/:exceptionId/investigate
+- POST /api/v1/exceptions/:exceptionId/retry-investigation (authorized)
+- POST /api/v1/exceptions/:exceptionId/cancel (authorized)
+
+APPROVALS:
+- GET /api/v1/approvals/pending
+- GET /api/v1/approvals/:approvalId
+- POST /api/v1/approvals/:approvalId/decision
+Decision body should contain only decision and comment/required information. Do not accept role, tenantId or approverId from client as authoritative; derive identity/scope from authenticated server context.
+
+KNOWLEDGE:
+- POST /api/v1/knowledge/documents
+- GET /api/v1/knowledge/documents
+- GET /api/v1/knowledge/documents/:documentId
+- POST /api/v1/knowledge/documents/:documentId/reindex (admin)
+
+ANALYTICS / AUDIT:
+- GET /api/v1/analytics/overview
+- GET /api/v1/analytics/exceptions
+- GET /api/v1/audit
+- GET /api/v1/workflows/:workflowRunId
+
+API RULES:
+- Validate all inputs with Zod or equivalent.
+- Validate all AI service payloads with explicit contracts.
+- Return stable error codes and useful messages.
+- Enforce role/tenant/manager scope on backend.
+- Add pagination, filtering and sorting to list endpoints.
+- Avoid exposing internal stack traces or secrets.
+- Add basic rate limiting on sensitive routes if practical.
+- Document all endpoints in docs/API_SPEC.md.
+
+======================================================================
+14. AI SERVICE API CONTRACTS
+======================================================================
+
+Expose private internal FastAPI endpoints such as:
+- POST /internal/v1/investigations
+- POST /internal/v1/policy-retrieval
+- POST /internal/v1/recommendations
+- POST /internal/v1/recommendation-review
+- POST /internal/v1/knowledge/ingest
+- GET /health
+
+Names may be improved, but API contracts must be explicit and versioned. Secure internal endpoints with service-to-service authentication or network restrictions. Do not expose unrestricted internal AI tools to the public internet.
+
+Each operation should receive a correlationId and tenantId plus only the minimum required employee facts. Prefer IDs and sanitized fields over full sensitive records. Return typed, validated JSON with citations and trace metadata.
+
+AI SERVICE FAILURE BEHAVIOR:
+- Provider unavailable: return a classified transient error for Inngest retry.
+- Provider rate-limited: respect Retry-After when supported; use bounded retries.
+- Invalid structured output: attempt limited validation/repair, then fail/escalate.
+- No policy evidence: return insufficient evidence; do not hallucinate.
+- Prompt injection in policy document: treat document content as untrusted evidence; never follow its instructions.
+
+======================================================================
+15. FRONTEND UX AND REQUIRED SCREENS
+======================================================================
+
+Build a clean enterprise SaaS UI. Prioritize clarity and operational usability over decoration. Support responsive desktop/tablet layouts.
+
+SCREEN 1: DASHBOARD
+- Total employees.
+- Today's attendance summary.
+- Exceptions detected.
+- Pending approvals.
+- Resolved exceptions.
+- High-priority cases.
+- Exception distribution by type.
+- Recent workflow activity.
+- Filters for date, department and location.
+Use actual API data, not hard-coded dashboard cards after integration.
+
+SCREEN 2: ATTENDANCE RECORDS
+- Employee, department, shift, clock-in, clock-out, worked duration, status.
+- Filters and pagination.
+- Highlight missing punches and anomalies.
+- Show local timezone correctly.
+- View record detail and history.
+
+SCREEN 3: EXCEPTION CENTER
+- Table/list of all exceptions.
+- Filter by status, type, severity, employee, department, date.
+- Search employee ID/name.
+- Show assigned manager and pending stage.
+- Actions subject to authorization.
+
+SCREEN 4: EXCEPTION DETAIL / AI INVESTIGATION
+- Original attendance facts.
+- Scheduled shift vs actual punches.
+- Exception reason.
+- Investigation summary.
+- Confirmed facts vs missing information vs conflicting evidence.
+- Policy citations with document title, section/page and snippet.
+- Recommendation and confidence/uncertainty explanation.
+- Workflow step timeline and retry status.
+- Clear label: AI recommendation, not an approved change.
+
+SCREEN 5: MANAGER APPROVAL INBOX
+- Pending requests assigned to manager.
+- Proposed change and old value.
+- Supporting facts and policy evidence.
+- Approve, reject, request more information.
+- Mandatory comment for rejection / request information where configured.
+- Show who is approving and why they are authorized.
+- Prevent double submission and show decision status.
+
+SCREEN 6: EMPLOYEE SELF-SERVICE (P1 IF TIME)
+- View own exception.
+- Confirm or dispute recorded time.
+- Enter comments/submit evidence.
+- Track status.
+
+SCREEN 7: POLICY KNOWLEDGE ADMIN
+- Upload synthetic policy docs.
+- See ingestion status, version, effective date and category.
+- Re-index/retry failed docs.
+- Show indexed sources.
+
+SCREEN 8: AUDIT / WORKFLOW MONITOR
+- Audit timeline.
+- Workflow status, event/run IDs, current stage, retry/failure metadata.
+- Failed workflows with safe retry option for authorized admin.
+- Do not display secrets or raw sensitive prompts.
+
+UI REQUIREMENTS:
+- Good loading, empty, success, error, timeout and pending states.
+- Optimistic UI only where safe; approval decision should wait for server confirmation.
+- Avoid fake progress bars. Use actual workflow progress events/polling.
+- Show clear differences between detected, investigating, waiting for human, approved, resolved, rejected, escalated and failed.
+- Use accessible controls and meaningful error messages.
+
+======================================================================
+16. DEMO DATA AND SCENARIOS
+======================================================================
+
+Seed a coherent demo organization with synthetic records:
+- 1 demo tenant/company.
+- 1 HR admin.
+- 2 managers.
+- 8–15 employees across at least 2 departments.
+- A mix of 9–5, 10–7 and overnight shifts if practical.
+- 1–2 weeks of attendance history.
+- Approved leave examples.
+- Multiple policy documents with version/effective date metadata.
+
+Prepare these specific demo cases:
+
+CASE A — MISSING CLOCK-OUT (PRIMARY HAPPY PATH)
+Employee has a clock-in but no clock-out after shift end. Investigation retrieves schedule and history, RAG retrieves missing-punch policy, AI proposes employee confirmation and manager approval, manager approves, backend applies a mock correction only after approval, audit log records the change.
+
+CASE B — LATE ARRIVAL (NO UNSUPPORTED CHANGE)
+Employee clocked in 12 minutes late. Rule engine detects the issue. Policy says grace period is 10 minutes in synthetic policy. AI explains the 2-minute-over-grace result. Manager can acknowledge or route according to demo configuration. Do not imply payroll deduction without an explicit rule.
+
+CASE C — OVERTIME REVIEW
+Employee recorded extra hours. RAG retrieves overtime authorization policy. AI recommends review rather than automatically marking payable overtime. Manager approves/rejects the review outcome.
+
+CASE D — INSUFFICIENT / CONFLICTING EVIDENCE
+There is no reliable basis to infer a missing clock-out. AI must say more information is required and route to human review. This case demonstrates responsible uncertainty.
+
+CASE E — FAILURE / RETRY DEMO (OPTIONAL)
+Simulate a temporary AI provider timeout or transient service failure. Show Inngest retrying only the failed step while successful earlier steps are not unnecessarily repeated. Ensure the UI displays retrying/recovered status and the final business action is not duplicated.
+
+The primary demo should take 4–6 minutes and must not depend on real third-party API keys or unpredictable external services. Provide a seed/reset command that restores demo state.
+
+======================================================================
+17. SECURITY, PRIVACY, GOVERNANCE AND SAFETY
+======================================================================
+
+Treat attendance information as sensitive employee data.
+- Use synthetic data only for the challenge demo.
+- Enforce role-based and manager-scope access on the server.
+- Validate tenant boundaries on every query and event.
+- Do not expose other employees' data to an employee user.
+- Use service-to-service authentication for internal calls.
+- Validate file upload type/size and store files safely.
+- Avoid logging sensitive values or full source documents.
+- Sanitize rendered user/document text to prevent XSS.
+- Treat policy documents and user comments as untrusted input; prompt-injection instructions inside them must not override system rules.
+- Do not allow LLM to generate/run SQL or arbitrary code.
+- Keep model credentials server-side.
+- Use least-privilege access.
+- Protect approval endpoints against CSRF/replay where relevant to the auth approach.
+- Use case version and approval consumption checks to prevent replay/double approval.
+- Keep audit trail of model recommendation, evidence, human decision and final action.
+- Never infer sensitive characteristics or use attendance anomalies to make unsupported employment decisions.
+- The product is an administrative assistance tool, not an autonomous disciplinary or payroll decision maker.
+
+======================================================================
+18. TESTING STRATEGY AND QUALITY GATES
+======================================================================
+
+Do not leave testing until the final hour.
+
+UNIT TESTS:
+- Missing clock-in/out detection.
+- Grace period boundaries.
+- Overnight shift duration.
+- Timezone/date conversion.
+- Overtime threshold rules.
+- Leave overlap/mismatch.
+- Exception deduplication.
+- Status transition map.
+- Role/manager authorization rules.
+- Idempotency key generation.
+
+INTEGRATION TESTS:
+- Core API + PostgreSQL repositories.
+- Event emission and Inngest function registration.
+- AI service schemas and timeout behavior.
+- Qdrant ingestion/retrieval (use local/dev instance or test adapter).
+- Approval decision -> workflow resume -> authorized correction.
+- Duplicate approval event does not duplicate correction.
+- Stale record version prevents overwrite.
+
+WORKFLOW TESTS:
+- Successful missing clock-out path.
+- AI provider temporary failure and retry.
+- Permanent invalid request does not retry indefinitely.
+- Approval event correlation does not accept another case's event.
+- Approval timeout escalates.
+- Request-more-information branch resumes correctly.
+- Rejection leaves attendance record unchanged.
+- Duplicate event is safe.
+- Cancellation prevents later execution.
+- Exhausted failure creates reviewable failed status.
+
+AI / RAG EVALUATION:
+- Fixed set of synthetic policy questions with expected documents.
+- Citation points to correct source chunk.
+- Policy conflict leads to escalation rather than arbitrary selection.
+- Model output schema validation.
+- No evidence -> insufficient_evidence result.
+- Recommendation does not include unsupported precise time.
+- Prompt injection text in a test policy/comment is not followed.
+
+END-TO-END ACCEPTANCE CRITERIA:
+1. Seed data loads successfully.
+2. Attendance scan detects the intended demo exceptions and does not create duplicates on rerun.
+3. Exception detail page shows source attendance data.
+4. AI investigation returns validated structured output.
+5. RAG returns relevant, traceable policy citations.
+6. Recommendation is stored as pending and does not modify official timecard values.
+7. Workflow waits durably for authorized human decision.
+8. Unauthorized user cannot approve.
+9. Authorized approval resumes workflow and applies exactly one correction.
+10. Rejection does not change attendance data.
+11. Every decision and mutation appears in audit history.
+12. Failed transient work can retry/recover without duplicating side effects.
+13. Main UI works with loading, error and empty states.
+
+QUALITY GATES BEFORE CALLING THE MVP COMPLETE:
+- Project installs from documented instructions.
+- All services start using documented commands / Docker Compose where supported.
+- Database migrations and seed script pass.
+- TypeScript typecheck passes.
+- Python tests pass for critical logic.
+- Lint passes or documented non-blocking lint issues remain.
+- Production build passes for frontend and backend.
+- Primary end-to-end demo scenario passes.
+- .env.example is complete and contains no secrets.
+- PROJECT_CONTEXT.txt and README reflect actual implementation.
+
+======================================================================
+19. RECOMMENDED MONOREPO FOLDER STRUCTURE
+======================================================================
+
+Adapt this to the existing repo if it already has a useful structure. Keep it readable; do not create empty folders for features that are not implemented.
+
+attendwise-ai/
+|
+|-- apps/
+|   |-- web/                         # Next.js/React frontend
+|   |   |-- src/
+|   |   |   |-- app/                 # routes/pages if Next.js
+|   |   |   |-- components/
+|   |   |   |   |-- layout/
+|   |   |   |   |-- dashboard/
+|   |   |   |   |-- attendance/
+|   |   |   |   |-- exceptions/
+|   |   |   |   |-- approvals/
+|   |   |   |   |-- investigation/
+|   |   |   |   |-- knowledge/
+|   |   |   |   |-- audit/
+|   |   |   |-- lib/
+|   |   |   |-- hooks/
+|   |   |   |-- services/            # API client only
+|   |   |   |-- types/
+|   |   |   |-- styles/
+|   |   |-- public/
+|   |   |-- package.json
+|   |
+|   |-- core-api/                    # Node.js + TypeScript business API
+|   |   |-- src/
+|   |   |   |-- config/
+|   |   |   |-- middleware/
+|   |   |   |-- modules/
+|   |   |   |   |-- auth/
+|   |   |   |   |-- tenants/
+|   |   |   |   |-- employees/
+|   |   |   |   |-- shifts/
+|   |   |   |   |-- attendance/
+|   |   |   |   |-- exceptions/
+|   |   |   |   |-- recommendations/
+|   |   |   |   |-- approvals/
+|   |   |   |   |-- policies/
+|   |   |   |   |-- notifications/
+|   |   |   |   |-- audit/
+|   |   |   |   |-- analytics/
+|   |   |   |-- integrations/
+|   |   |   |   |-- ai-client.ts
+|   |   |   |   |-- inngest-client.ts
+|   |   |   |-- shared/
+|   |   |   |-- app.ts
+|   |   |   |-- server.ts
+|   |   |-- prisma/ or db/
+|   |   |-- tests/
+|   |   |-- package.json
+|   |
+|   |-- workflow-worker/             # Node.js + Inngest durable functions
+|   |   |-- src/
+|   |   |   |-- inngest/
+|   |   |   |   |-- client.ts
+|   |   |   |   |-- events.ts
+|   |   |   |   |-- functions/
+|   |   |   |   |   |-- attendance-import.ts
+|   |   |   |   |   |-- exception-scan.ts
+|   |   |   |   |   |-- investigate-exception.ts
+|   |   |   |   |   |-- employee-confirmation.ts
+|   |   |   |   |   |-- human-approval.ts
+|   |   |   |   |   |-- apply-correction.ts
+|   |   |   |   |   |-- policy-ingestion.ts
+|   |   |   |   |   |-- reminders-escalations.ts
+|   |   |   |   |   |-- failure-handler.ts
+|   |   |   |   |-- index.ts
+|   |   |   |-- clients/
+|   |   |   |   |-- core-api.client.ts
+|   |   |   |   |-- ai-service.client.ts
+|   |   |   |-- schemas/
+|   |   |   |-- utils/
+|   |   |   |-- serve.ts
+|   |   |-- tests/
+|   |   |-- package.json
+|   |
+|   |-- ai-service/                  # Python + FastAPI
+|       |-- app/
+|       |   |-- main.py
+|       |   |-- api/
+|       |   |   |-- routes/
+|       |   |-- agents/
+|       |   |   |-- investigator.py
+|       |   |   |-- policy_retrieval.py
+|       |   |   |-- resolution_planner.py
+|       |   |   |-- recommendation_reviewer.py
+|       |   |-- rag/
+|       |   |   |-- ingestion.py
+|       |   |   |-- parser.py
+|       |   |   |-- chunker.py
+|       |   |   |-- embeddings.py
+|       |   |   |-- retriever.py
+|       |   |   |-- reranker.py
+|       |   |   |-- citations.py
+|       |   |-- prompts/
+|       |   |-- schemas/
+|       |   |-- providers/
+|       |   |-- services/
+|       |   |-- core/
+|       |   |-- tests/
+|       |-- pyproject.toml or requirements.txt
+|
+|-- packages/
+|   |-- contracts/                   # shared event/API JSON schemas
+|   |-- config/                      # shared lint/tsconfig where useful
+|
+|-- database/
+|   |-- migrations/                  # if not managed by Prisma
+|   |-- seed/
+|   |   |-- employees/
+|   |   |-- attendance/
+|   |   |-- shifts/
+|   |   |-- policies/
+|
+|-- docs/
+|   |-- ARCHITECTURE.md
+|   |-- API_SPEC.md
+|   |-- EVENT_CATALOG.md
+|   |-- DEMO_SCRIPT.md
+|   |-- adr/
+|
+|-- scripts/
+|   |-- seed-demo-data.*
+|   |-- reset-demo-data.*
+|
+|-- docker-compose.yml
+|-- .env.example
+|-- .gitignore
+|-- PROJECT_CONTEXT.txt
+|-- README.md
+|-- package.json / workspace config
+
+======================================================================
+20. ENVIRONMENT VARIABLES AND LOCAL DEVELOPMENT
+======================================================================
+
+Create .env.example with variable names and safe placeholder values only. Never place working secrets in this file.
+
+Examples of required configuration categories (adapt names to actual implementation):
+- DATABASE_URL
+- QDRANT_URL
+- QDRANT_API_KEY (optional for local instance)
+- INNGEST_EVENT_KEY / INNGEST_SIGNING_KEY if required by chosen environment
+- AI_SERVICE_URL
+- CORE_API_URL
+- INTERNAL_SERVICE_TOKEN
+- LLM_PROVIDER
+- LLM_API_KEY
+- LLM_MODEL
+- EMBEDDING_PROVIDER
+- EMBEDDING_API_KEY
+- EMBEDDING_MODEL
+- AUTH_PROVIDER settings if applicable
+- FILE_STORAGE_DRIVER
+- FILE_STORAGE_PATH for local development
+- APP_BASE_URL
+- CORS_ALLOWED_ORIGINS
+
+Use Docker Compose for PostgreSQL and Qdrant if it simplifies setup. Use the Inngest Dev Server for local workflow development and traces, following current official setup instructions. Clearly document any services that must be started separately.
+
+Do not add Redis or Kafka unless a concrete implemented requirement justifies it. Inngest already provides the durable orchestration/queue behavior required for the hackathon workflow. Avoid maintaining two competing job queues.
+
+======================================================================
+21. IMPLEMENTATION MILESTONES — BUILD IN THIS ORDER
+======================================================================
+
+MILESTONE 0: REPOSITORY RECONNAISSANCE
+- Inspect repository and supplied materials.
+- Identify existing framework versions and code.
+- Write initial PROJECT_CONTEXT.txt.
+- Propose final architecture and folder structure.
+- Record assumptions and ADRs.
+- Do not generate all modules as empty stubs.
+
+MILESTONE 1: SKELETON AND LOCAL INFRASTRUCTURE
+- Establish workspace structure.
+- Create web, core API, workflow worker and AI service shells.
+- Add PostgreSQL and Qdrant local configuration.
+- Add Inngest client and dev-server connection.
+- Add health endpoints.
+- Add .env.example and run scripts.
+- Confirm all services start.
+
+MILESTONE 2: DOMAIN MODEL AND SEED DATA
+- Create schema/migrations.
+- Seed tenant, roles, employees, shifts, attendance and synthetic policies.
+- Add deterministic time/date utilities.
+- Add tests for time-zone and overnight shifts.
+
+MILESTONE 3: ATTENDANCE AND EXCEPTION DETECTION
+- Implement attendance list/detail/import.
+- Implement rule-based detectors.
+- Create idempotent exception records.
+- Implement exception list/detail APIs and UI.
+- Test duplicate scan behavior.
+
+MILESTONE 4: RAG KNOWLEDGE BASE
+- Implement policy ingestion pipeline.
+- Integrate embedding provider and Qdrant.
+- Store document metadata in PostgreSQL.
+- Implement retrieval with metadata filters and citations.
+- Seed synthetic policies and test retrieval.
+
+MILESTONE 5: AI INVESTIGATION AND RESOLUTION
+- Implement typed AI service schemas.
+- Implement investigator, retrieval and resolution planner.
+- Implement reviewer validation.
+- Add provider adapter and timeouts.
+- Test insufficient evidence and contradictory policy cases.
+
+MILESTONE 6: INNGEST DURABLE WORKFLOW
+- Implement event catalog and validation.
+- Implement exception investigation workflow.
+- Add step-level retries and classified errors.
+- Add idempotency and concurrency controls.
+- Add run tracking and progress events.
+- Implement failure handler and manual recovery path.
+
+MILESTONE 7: HUMAN-IN-THE-LOOP
+- Create approval records and authorization rules.
+- Add durable waitForEvent approval step.
+- Add approve/reject/request-more-info paths.
+- Implement timeout and escalation.
+- Implement workflow resume.
+- Add safe correction command with transaction, optimistic locking and idempotency.
+- Prove duplicate/replay approval is safe.
+
+MILESTONE 8: FRONTEND INTEGRATION
+- Complete dashboard.
+- Complete attendance and exceptions pages.
+- Complete investigation/evidence panel.
+- Complete approval inbox and decision UI.
+- Complete audit trail and workflow state UI.
+- Add loading/error/empty states.
+
+MILESTONE 9: POLISH, QA AND DEMO
+- Add sample demo scenarios.
+- Test all workflows end-to-end.
+- Add retry/failure demonstration.
+- Fix major bugs.
+- Verify permissions and audit trail.
+- Deploy if practical; local demo must still work.
+- Write README and DEMO_SCRIPT.md.
+- Update PROJECT_CONTEXT.txt with exact final status and remaining limitations.
+
+At all times, prioritize a complete primary vertical slice over implementing every P1/P2 feature.
+
+======================================================================
+22. PROJECT MANAGEMENT AND CONTINUOUS IMPROVEMENT EXPECTATIONS
+======================================================================
+
+You are allowed and encouraged to improve the architecture, workflow, UI, reliability, performance, security and developer experience when you identify a meaningful improvement.
+
+However:
+- Do not add complexity only to use more technologies.
+- Do not add agents unless they provide a distinct, testable responsibility.
+- Do not create extra microservices if a module or worker is enough.
+- Do not add LangGraph if Inngest steps already express the workflow clearly.
+- Do not add a message broker in parallel with Inngest without a clear need.
+- Do not use a model for deterministic calculations.
+- Do not let an agent approve or execute its own business recommendation.
+- Do not allow RAG citations to be fabricated; citation IDs must originate from retrieved chunks.
+- Do not store authoritative business state only in workflow memory.
+- Do not rely on frontend-only permissions.
+- Do not sacrifice the main demo path for speculative features.
+
+When improving something, state briefly:
+1. What problem was found?
+2. What improvement is proposed?
+3. Why is it worthwhile within the deadline?
+4. What files/contracts change?
+5. What test proves it works?
+Then implement if beneficial and update PROJECT_CONTEXT.txt.
+
+If time is running short, reduce scope in this order:
+1. Remove optional exception types.
+2. Remove employee self-service UI but keep the ability to mark employee confirmation as missing.
+3. Remove email notifications and keep in-app notifications.
+4. Remove reranking/hybrid search and use dense retrieval with citations.
+5. Remove advanced analytics and keep essential dashboard counts.
+Never remove: end-to-end workflow, actual human approval wait/resume, safe authorized correction, audit trail, and a working policy retrieval path.
+
+======================================================================
+23. FINAL ACCEPTANCE / DEFINITION OF DONE
+======================================================================
+
+The product is ready for the challenge demo only when the following primary scenario works from the UI:
+
+1. HR admin opens AttendWise AI and sees seeded employees, shifts and attendance records.
+2. User runs an attendance scan or a seeded event triggers it.
+3. System detects a missing clock-out exception exactly once.
+4. User opens the exception details.
+5. Investigation workflow starts through Inngest.
+6. The Investigation Agent summarizes confirmed records and missing evidence.
+7. Policy RAG returns applicable synthetic policy passages with real citations.
+8. Resolution Agent recommends a safe next step and identifies required approver.
+9. Recommendation is stored; original attendance record remains unchanged.
+10. Inngest workflow pauses durably while waiting for human decision.
+11. Manager opens approval inbox and sees facts, evidence, citations, proposed change and risk/uncertainty.
+12. An unauthorized user cannot approve.
+13. Manager approves with an explicit action.
+14. Core API verifies permission, case version, approval status and idempotency key.
+15. Approved correction is applied exactly once to the mock attendance record.
+16. Approval, before/after values and workflow outcome are written to audit log.
+17. Inngest workflow resumes and marks the exception resolved.
+18. UI reflects the completed state and displays the full timeline.
+19. A rejection test leaves the original attendance record unchanged.
+20. A retry test proves a transient failure does not duplicate prior successful side effects.
+
+Also complete:
+- README setup instructions.
+- Architecture and event catalog.
+- Demo script.
+- .env.example.
+- PROJECT_CONTEXT.txt fully updated.
+- Tests for core detection, authorization, approval and idempotency.
+
+======================================================================
+24. FIRST ACTIONS — START NOW
+======================================================================
+
+Do these actions in order:
+
+1. Inspect the repository and list the current files, stack, scripts and existing implementation.
+2. Identify the supplied challenge stack/constraints and preserve relevant choices.
+3. Create PROJECT_CONTEXT.txt immediately with initial project summary, assumptions, current repo state and next steps.
+4. Propose the final architecture in docs/ARCHITECTURE.md and add ADRs for:
+   - Inngest as durable business workflow orchestrator.
+   - PostgreSQL as business source of truth.
+   - Qdrant as policy vector store.
+   - AI service cannot directly mutate official attendance records.
+   - Human approval required before consequential correction.
+5. Create a small implementation plan as GitHub-style checklist in README or docs/IMPLEMENTATION_PLAN.md.
+6. Build the first vertical slice: seeded employee/shift/attendance -> missing clock-out detection -> exception record -> investigation/RAG/recommendation -> Inngest human wait -> manager approval -> safe correction -> audit log.
+7. Run tests and fix the vertical slice before expanding to more exception types.
+8. Continue through remaining milestones, updating PROJECT_CONTEXT.txt after each milestone.
+9. At the end, provide a concise completion report listing implemented features, exact run commands, tests passed/failed, environment variables needed, demo steps, limitations and next improvements.
+
+Do not respond with only a proposed architecture. Inspect the repository and begin implementing the product.
+
+END OF MASTER PROMPT

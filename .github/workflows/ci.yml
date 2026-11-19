@@ -1,0 +1,49 @@
+name: CI Suite
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test-and-build:
+    name: Build & Verify AttendWise AI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Initialize SQLite Schema & Seed
+        run: npm run seed
+
+      - name: Run Core API Unit & Integration Tests
+        run: npm --workspace=@attendwise/core-api run test
+
+      - name: Build Next.js Web Application
+        run: npm --workspace=@attendwise/web run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+          NEXT_PUBLIC_AI_SERVICE_URL: http://localhost:8000
+
+      - name: Install Python Dependencies & Verify AI Service
+        run: |
+          cd apps/ai-service
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -c "import app.main; print('AI Service imported successfully')"
