@@ -378,6 +378,54 @@ Shifts of 6+ hours include a mandatory unpaid meal break of 30 minutes. Shifts o
     }
   }
 
+  // ── Seed Role-Specific Notifications ─────────────────────────────────────
+  const sampleNotifs = [
+    {
+      id: 'notif-hr-1',
+      recipientId: 'user-hr-admin',
+      type: 'APPROVAL_REQUESTED',
+      title: 'Action Required: Attendance Review',
+      body: 'AI Investigation completed for detected attendance exceptions. 3 approvals require managerial review.',
+    },
+    {
+      id: 'notif-hr-2',
+      recipientId: 'user-hr-admin',
+      type: 'POLICY_INGESTED',
+      title: 'Policies Synchronized',
+      body: '5 corporate attendance policies indexed into vector search with 28 chunks.',
+    },
+    {
+      id: 'notif-ops-1',
+      recipientId: 'user-mgr-ops',
+      type: 'APPROVAL_REQUESTED',
+      title: 'Pending Timecard Approval: Dan Brown',
+      body: 'Dan Brown flagged for MISSING_CLOCK_IN. AI proposed: Categorize as missing punch and verify colleague confirmation.',
+    },
+    {
+      id: 'notif-tech-1',
+      recipientId: 'user-mgr-tech',
+      type: 'APPROVAL_REQUESTED',
+      title: 'Pending Timecard Approval: Eva Garcia',
+      body: 'Eva Garcia flagged for LATE_ARRIVAL. AI proposed: Excuse under Category 1 grace period.',
+    },
+    {
+      id: 'notif-alice-1',
+      recipientId: 'user-emp-alice',
+      type: 'ATTENDANCE_PUNCH',
+      title: 'Shift Schedule Published',
+      body: 'Your weekly shifts from 09:00 to 17:00 EST have been published. Remember to punch in via the Web Punch Clock.',
+    },
+  ];
+
+  for (const n of sampleNotifs) {
+    execute(
+      `INSERT OR IGNORE INTO notifications
+         (id, tenant_id, recipient_user_id, type, title, body, idempotency_key, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'UNREAD', datetime('now'))`,
+      [n.id, tenantId, n.recipientId, n.type, n.title, n.body, `key-${n.id}`]
+    );
+  }
+
   console.log('✅ Seed complete.');
   console.log('   Tenant: 1 | Users: 11 | Employees: 9 | Policies: 5');
   console.log('');

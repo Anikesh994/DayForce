@@ -6,6 +6,7 @@ import { Card, CardBody } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatCard } from '@/components/ui/stat-card';
+import { PunchClockWidget } from '@/components/PunchClockWidget';
 import { Clock, Search, RefreshCw, AlertTriangle, CheckCircle2, Users } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -65,6 +66,9 @@ export default function AttendancePage() {
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Web Punch Clock Widget */}
+      <PunchClockWidget onPunchSuccess={load} />
 
       {/* Quick Stats */}
       <div className="grid grid-cols-3 gap-4">

@@ -8,6 +8,7 @@ import { Card, CardBody, CardHeader, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PunchClockWidget } from '@/components/PunchClockWidget';
 import {
   AlertTriangle, CheckCircle2, Clock, Users,
   TrendingUp, FileText, Shield, RefreshCw,
@@ -104,6 +105,9 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Web Punch Clock for Employees & Self-Service */}
+      <PunchClockWidget onPunchSuccess={load} />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

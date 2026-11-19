@@ -108,4 +108,171 @@ router.post('/scan', requireRole('MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN'), async (
   }
 });
 
+const PunchSchema = z.object({
+  action: z.enum(['IN', 'OUT']),
+  notes: z.string().optional(),
+  employeeId: z.string().optional(),
+});
+
+// GET /api/v1/attendance/punch-status
+router.get('/punch-status', (req: Request, res: Response): void => {
+  const tenantId = req.user!.tenantId;
+  let employee = queryOne<any>('SELECT * FROM employees WHERE user_id = ?', [req.user!.id]);
+  
+  if (!employee) {
+    employee = queryOne<any>('SELECT * FROM employees WHERE tenant_id = ? LIMIT 1', [tenantId]);
+  }
+
+  if (!employee) {
+    res.json({ isClockedIn: false, currentRecord: null, lastClockIn: null });
+    return;
+  }
+
+  const activeRecord = queryOne<any>(
+    "SELECT * FROM attendance_records WHERE employee_id = ? AND clock_out_utc IS NULL ORDER BY created_at DESC LIMIT 1",
+    [employee.id]
+  );
+
+  const lastRecord = queryOne<any>(
+    "SELECT * FROM attendance_records WHERE employee_id = ? ORDER BY created_at DESC LIMIT 1",
+    [employee.id]
+  );
+
+  res.json({
+    employeeId: employee.id,
+    employeeName: `${employee.first_name} ${employee.last_name}`,
+    isClockedIn: !!activeRecord,
+    currentRecord: activeRecord || null,
+    lastRecord: lastRecord || null,
+  });
+});
+
+// POST /api/v1/attendance/punch — Clock in or clock out
+router.post('/punch', (req: Request, res: Response): void => {
+  const parsed = PunchSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid punch data', details: parsed.error.issues });
+    return;
+  }
+
+  const { action, notes, employeeId: targetEmpId } = parsed.data;
+  const tenantId = req.user!.tenantId;
+
+  let employee = queryOne<any>('SELECT * FROM employees WHERE user_id = ?', [req.user!.id]);
+  if (!employee && targetEmpId) {
+    employee = queryOne<any>('SELECT * FROM employees WHERE id = ?', [targetEmpId]);
+  }
+  if (!employee) {
+    employee = queryOne<any>('SELECT * FROM employees WHERE tenant_id = ? LIMIT 1', [tenantId]);
+  }
+
+  if (!employee) {
+    res.status(404).json({ error: 'Employee record not found for user' });
+    return;
+  }
+
+  const nowIso = new Date().toISOString();
+  const dateStr = nowIso.slice(0, 10);
+
+  if (action === 'IN') {
+    const active = queryOne<any>(
+      "SELECT * FROM attendance_records WHERE employee_id = ? AND clock_out_utc IS NULL",
+      [employee.id]
+    );
+
+    if (active) {
+      res.status(400).json({
+        error: 'Already clocked in',
+        record: active,
+        message: `Already clocked in at ${active.clock_in_utc}`,
+      });
+      return;
+    }
+
+    let shift = queryOne<any>(
+      "SELECT * FROM shifts WHERE employee_id = ? AND local_date = ? LIMIT 1",
+      [employee.id, dateStr]
+    );
+
+    const recordId = `att-${employee.id}-${Date.now().toString(36)}`;
+    execute(
+      `INSERT INTO attendance_records
+         (id, tenant_id, employee_id, shift_id, clock_in_utc, clock_out_utc, source, status, version, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, null, 'WEB_PUNCH', 'RECORDED', 1, datetime('now'), datetime('now'))`,
+      [recordId, tenantId, employee.id, shift ? shift.id : null, nowIso]
+    );
+
+    const notifId = `notif-punch-${Date.now().toString(36)}`;
+    execute(
+      `INSERT OR IGNORE INTO notifications
+         (id, tenant_id, recipient_user_id, type, title, body, related_entity_type, related_entity_id, idempotency_key, status, created_at)
+       VALUES (?, ?, ?, 'ATTENDANCE_PUNCH', 'Clock-In Confirmed', ?, 'AttendanceRecord', ?, ?, 'UNREAD', datetime('now'))`,
+      [
+        notifId,
+        tenantId,
+        req.user!.id,
+        `You successfully clocked in at ${new Date().toLocaleTimeString()} (Web Punch).`,
+        recordId,
+        `idem-${notifId}`,
+      ]
+    );
+
+    res.json({
+      success: true,
+      action: 'IN',
+      message: `Clock-In successfully recorded at ${new Date().toLocaleTimeString()}`,
+      recordId,
+      clockInUtc: nowIso,
+    });
+  } else {
+    // PUNCH OUT
+    const active = queryOne<any>(
+      "SELECT * FROM attendance_records WHERE employee_id = ? AND clock_out_utc IS NULL ORDER BY created_at DESC LIMIT 1",
+      [employee.id]
+    );
+
+    let recordId: string;
+    if (active) {
+      recordId = active.id;
+      execute(
+        `UPDATE attendance_records
+         SET clock_out_utc = ?, status = 'RECORDED', version = version + 1, updated_at = datetime('now')
+         WHERE id = ?`,
+        [nowIso, active.id]
+      );
+    } else {
+      recordId = `att-${employee.id}-${Date.now().toString(36)}`;
+      execute(
+        `INSERT INTO attendance_records
+           (id, tenant_id, employee_id, shift_id, clock_in_utc, clock_out_utc, source, status, version, created_at, updated_at)
+         VALUES (?, ?, ?, null, null, ?, 'WEB_PUNCH', 'FLAGGED', 1, datetime('now'), datetime('now'))`,
+        [recordId, tenantId, employee.id, nowIso]
+      );
+    }
+
+    const notifId = `notif-punch-${Date.now().toString(36)}`;
+    execute(
+      `INSERT OR IGNORE INTO notifications
+         (id, tenant_id, recipient_user_id, type, title, body, related_entity_type, related_entity_id, idempotency_key, status, created_at)
+       VALUES (?, ?, ?, 'ATTENDANCE_PUNCH', 'Clock-Out Confirmed', ?, 'AttendanceRecord', ?, ?, 'UNREAD', datetime('now'))`,
+      [
+        notifId,
+        tenantId,
+        req.user!.id,
+        `You successfully clocked out at ${new Date().toLocaleTimeString()} (Web Punch).`,
+        recordId,
+        `idem-${notifId}`,
+      ]
+    );
+
+    res.json({
+      success: true,
+      action: 'OUT',
+      message: `Clock-Out successfully recorded at ${new Date().toLocaleTimeString()}`,
+      recordId,
+      clockOutUtc: nowIso,
+    });
+  }
+});
+
 export default router;

@@ -37,9 +37,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   // Auth
-  login:     (email: string, password: string) =>
+  login:     (email: string, password: string, role?: string) =>
     request<{ token: string; user: any }>('/api/v1/auth/login', {
-      method: 'POST', body: JSON.stringify({ email, password }),
+      method: 'POST', body: JSON.stringify({ email, password, role }),
+    }),
+  register:  (data: { email: string; password: string; displayName: string; role?: string; department?: string }) =>
+    request<{ token: string; user: any; message: string }>('/api/v1/auth/register', {
+      method: 'POST', body: JSON.stringify(data),
     }),
   me:        () => request<{ user: any }>('/api/v1/auth/me'),
   demoUsers: () => request<{ users: any[]; note: string }>('/api/v1/auth/demo-users'),
@@ -56,6 +60,11 @@ export const api = {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
     return request<any>(`/api/v1/attendance${qs}`);
   },
+  punchStatus: () => request<{ isClockedIn: boolean; currentRecord: any; lastRecord: any; employeeName?: string }>('/api/v1/attendance/punch-status'),
+  punch: (action: 'IN' | 'OUT', notes?: string) =>
+    request<{ success: boolean; action: string; message: string; recordId: string }>('/api/v1/attendance/punch', {
+      method: 'POST', body: JSON.stringify({ action, notes }),
+    }),
   scan: (startDate: string, endDate: string) =>
     request<any>('/api/v1/attendance/scan', {
       method: 'POST', body: JSON.stringify({ startDate, endDate }),
@@ -90,6 +99,10 @@ export const api = {
     request<any>(`/api/v1/notifications${status ? `?status=${status}` : ''}`),
   markRead: (id: string) =>
     request<any>(`/api/v1/notifications/${id}/read`, { method: 'POST' }),
+  markAllRead: () =>
+    request<any>('/api/v1/notifications/mark-all-read', { method: 'POST' }),
+  createTestNotification: () =>
+    request<any>('/api/v1/notifications/create-test', { method: 'POST' }),
 
   // Policies
   policies: () => request<{ documents: any[] }>('/api/v1/policies'),

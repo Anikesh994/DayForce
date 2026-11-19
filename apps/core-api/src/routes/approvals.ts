@@ -8,7 +8,7 @@ const router = Router();
 router.use(requireAuth);
 
 // GET /api/v1/approvals  — pending approval inbox
-router.get('/', requireRole('MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN'), (req: Request, res: Response): void => {
+router.get('/', (req: Request, res: Response): void => {
   const tenantId = req.user!.tenantId;
   const { status = 'PENDING' } = req.query;
 
@@ -27,13 +27,21 @@ router.get('/', requireRole('MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN'), (req: Reques
     JOIN exception_cases ec ON a.exception_id = ec.id
     LEFT JOIN recommendations r ON a.recommendation_id = r.id
     JOIN employees e ON ec.employee_id = e.id
-    WHERE a.tenant_id = ? AND a.status = ?
+    WHERE a.tenant_id = ?
   `;
-  const params: any[] = [tenantId, status];
+  const params: any[] = [tenantId];
+
+  if (status && status !== 'ALL') {
+    sql += ' AND a.status = ?';
+    params.push(status);
+  }
 
   if (req.user!.role === 'MANAGER') {
     sql += ' AND (a.assigned_approver_id = ? OR a.required_role = ? OR a.required_role IS NULL OR a.assigned_approver_id IS NULL)';
     params.push(req.user!.id, 'MANAGER');
+  } else if (req.user!.role === 'EMPLOYEE') {
+    sql += ' AND ec.employee_id = (SELECT id FROM employees WHERE user_id = ?)';
+    params.push(req.user!.id);
   }
 
   sql += ' ORDER BY a.requested_at DESC';

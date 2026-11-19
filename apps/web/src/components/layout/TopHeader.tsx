@@ -1,12 +1,13 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { getUser, setUser } from '@/lib/auth';
 import { setToken, api } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 import {
   Users, ShieldCheck, ChevronDown, Sparkles, Activity,
-  Building2, Check
+  Building2, Check, Bell
 } from 'lucide-react';
+import Link from 'next/link';
 import { clsx } from 'clsx';
 
 const demoProfiles = [
@@ -22,6 +23,22 @@ export function TopHeader() {
   const { success, error } = useToast();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
+
+  useEffect(() => {
+    async function loadNotifCount() {
+      try {
+        const res = await api.notifications();
+        const unread = (res.notifications || []).filter((n: any) => n.status === 'UNREAD').length;
+        setUnreadNotifs(unread);
+      } catch (err) {
+        // silent
+      }
+    }
+    loadNotifCount();
+    const interval = setInterval(loadNotifCount, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function handleSwitchRole(profile: typeof demoProfiles[0]) {
     setSwitching(true);
@@ -74,8 +91,21 @@ export function TopHeader() {
         </div>
       </div>
 
-      {/* Right: Role Switcher Dropdown */}
+      {/* Right: Notification Bell & Role Switcher */}
       <div className="flex items-center gap-3 relative">
+        <Link
+          href="/notifications"
+          className="relative p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+          title="Notifications"
+        >
+          <Bell className="w-4 h-4" />
+          {unreadNotifs > 0 && (
+            <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
+              {unreadNotifs > 9 ? '9+' : unreadNotifs}
+            </span>
+          )}
+        </Link>
+
         <span className="text-xs text-slate-500 hidden sm:inline">Active Persona:</span>
 
         <div className="relative">
