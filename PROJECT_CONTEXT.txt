@@ -140,3 +140,10 @@ G. CHANGE LOG
 - 2026-11-19: Overhauled `/login` with dual tabs ("Log In" and "Sign In / Register") featuring role selectors (Employee, Manager, HR Admin, System Admin), user registration API (`POST /api/v1/auth/register`), and compact quick-fill pills that eliminated dummy data clutter.
 - 2026-11-19: Fixed Approval Inbox accessibility: allowed employees to view their own exception approvals, added status tabs (Pending, Approved, All), and integrated a 1-click "Generate Approvals" AI scan trigger.
 - 2026-11-19: Fixed Notifications system: added required `idempotency_key` constraint handling, seeded unread notifications for Sarah Chen, David Miller, Lisa Park, and Alice Johnson, enabled live test alert creation, and integrated an unread badge counter into TopHeader.
+- 2026-11-19: Resolved "view buttons everywhere giving client side error":
+  * Diagnosed root cause: `rec.proposed_changes` and `inv.confirmed_facts` were stored in SQLite as JSON strings. When rendered in React, evaluating `.length > 0` on a string was truthy, leading to `rec.proposed_changes.map(...)` throwing `TypeError: *.map is not a function` and triggering Next.js uncaught error boundary.
+  * Added universal `toArray(...)` defensive helper in `apps/web/src/app/exceptions/[id]/page.tsx` and `apps/web/src/app/approvals/page.tsx`.
+  * Updated `apps/core-api/src/routes/exceptions.ts` and `apps/core-api/src/routes/approvals.ts` to deserialize both camelCase and snake_case properties into guaranteed JavaScript arrays/objects.
+  * Fixed SQLite SQL syntax error in `apps/core-api/src/routes/notifications.ts` where double quotes were used around string literals causing HTTP 500.
+  * Fixed `CHECK constraint failed: source IN ('WEB_CLOCK','MOBILE','BADGE_SWIPE','SYSTEM_ADJUSTMENT')` in `apps/core-api/src/routes/attendance.ts` by updating punch source to `'WEB_CLOCK'`.
+  * Rebuilt web application cleanly (14 routes) and re-verified Punch Clock, Exceptions View, Approvals Inbox, and Notifications end-to-end.
