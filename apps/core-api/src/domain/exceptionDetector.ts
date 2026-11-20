@@ -29,22 +29,37 @@ export async function detectExceptions(opts: {
   startDate: string;
   endDate: string;
   departmentId?: string;
+  employeeId?: string;
 }): Promise<DetectedExc[]> {
-  const { tenantId, startDate, endDate } = opts;
+  const { tenantId, startDate, endDate, departmentId, employeeId } = opts;
 
-  const shifts = queryAll<any>(
-    `SELECT s.*, 
-            e.id AS empId, e.first_name || ' ' || e.last_name AS empName,
-            e.department, e.manager_employee_id, e.created_at AS emp_created_at,
-            ar.id AS arId, ar.clock_in_utc, ar.clock_out_utc, ar.version AS arVersion
-     FROM shifts s
-     JOIN employees e ON s.employee_id = e.id
-     LEFT JOIN attendance_records ar ON ar.shift_id = s.id
-     WHERE s.tenant_id = ? AND s.local_date BETWEEN ? AND ?
-       AND s.status != 'CANCELLED'
-     ORDER BY s.scheduled_start_utc ASC`,
-    [tenantId, startDate, endDate]
-  );
+  let sql = `
+    SELECT s.*, 
+           e.id AS empId, e.first_name || ' ' || e.last_name AS empName,
+           e.department, e.manager_employee_id, e.created_at AS emp_created_at,
+           ar.id AS arId, ar.clock_in_utc, ar.clock_out_utc, ar.version AS arVersion
+    FROM shifts s
+    JOIN employees e ON s.employee_id = e.id
+    LEFT JOIN (
+      SELECT id, shift_id, clock_in_utc, clock_out_utc, version,
+             ROW_NUMBER() OVER (PARTITION BY shift_id ORDER BY created_at DESC) as rn
+      FROM attendance_records
+    ) ar ON ar.shift_id = s.id AND ar.rn = 1
+    WHERE s.tenant_id = ? AND s.local_date BETWEEN ? AND ?
+      AND s.status != 'CANCELLED'
+  `;
+  const params: any[] = [tenantId, startDate, endDate];
+  if (employeeId) {
+    sql += ' AND s.employee_id = ?';
+    params.push(employeeId);
+  }
+  if (departmentId) {
+    sql += ' AND e.department = ?';
+    params.push(departmentId);
+  }
+  sql += ' ORDER BY s.scheduled_start_utc ASC';
+
+  const shifts = queryAll<any>(sql, params);
 
   const detected: DetectedExc[] = [];
   const now = new Date();

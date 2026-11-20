@@ -326,9 +326,8 @@ router.post('/punch', (req: Request, res: Response): void => {
     // Trigger AI pipeline in background if anomaly detected
     setTimeout(async () => {
       try {
-        const detected = await detectExceptions({ tenantId, startDate: dateStr, endDate: dateStr });
-        const matched = detected.filter((e) => e.employeeId === employee.id);
-        for (const exc of matched) {
+        const detected = await detectExceptions({ tenantId, startDate: dateStr, endDate: dateStr, employeeId: employee.id });
+        for (const exc of detected) {
           const existingPending = queryOne<any>(
             "SELECT id FROM approvals WHERE exception_id = ? AND status = 'PENDING' LIMIT 1",
             [exc.id]
@@ -353,14 +352,29 @@ router.post('/punch', (req: Request, res: Response): void => {
       [employee.id]
     );
 
+    const shift = active?.shift_id
+      ? queryOne<any>('SELECT * FROM shifts WHERE id = ?', [active.shift_id])
+      : queryOne<any>('SELECT * FROM shifts WHERE employee_id = ? AND local_date = ? LIMIT 1', [employee.id, dateStr]);
+
+    let isEarly = false;
+    let earlyMins = 0;
+    if (shift) {
+      const endUtc = new Date(shift.scheduled_end_utc);
+      const punchOutTime = new Date(nowIso);
+      earlyMins = Math.round((endUtc.getTime() - punchOutTime.getTime()) / 60000);
+      if (earlyMins > 15) {
+        isEarly = true;
+      }
+    }
+
     let recordId: string;
     if (active) {
       recordId = active.id;
       execute(
         `UPDATE attendance_records
-         SET clock_out_utc = ?, status = 'RECORDED', version = version + 1, updated_at = datetime('now')
+         SET clock_out_utc = ?, status = ?, version = version + 1, updated_at = datetime('now')
          WHERE id = ?`,
-        [nowIso, active.id]
+        [nowIso, isEarly ? 'FLAGGED' : 'RECORDED', active.id]
       );
     } else {
       recordId = `att-${employee.id}-${Date.now().toString(36)}`;
@@ -381,7 +395,9 @@ router.post('/punch', (req: Request, res: Response): void => {
         notifId,
         tenantId,
         req.user!.id,
-        `You successfully clocked out at ${new Date().toLocaleTimeString()} (Web Punch).`,
+        isEarly
+          ? `Clock-Out recorded at ${new Date().toLocaleTimeString()} (${earlyMins}m before scheduled shift end). Exception submitted for AI review.`
+          : `You successfully clocked out at ${new Date().toLocaleTimeString()} (Web Punch).`,
         recordId,
         `idem-${notifId}`,
       ]
@@ -390,17 +406,18 @@ router.post('/punch', (req: Request, res: Response): void => {
     res.json({
       success: true,
       action: 'OUT',
-      message: `Clock-Out successfully recorded at ${new Date().toLocaleTimeString()}`,
+      message: `Clock-Out successfully recorded at ${new Date().toLocaleTimeString()}${isEarly ? ` (${earlyMins}m early departure)` : ''}`,
       recordId,
       clockOutUtc: nowIso,
+      isEarly,
+      earlyMins: isEarly ? earlyMins : 0,
     });
 
-    // Run real-time exception detection & AI pipeline in background
+    // Run real-time exception detection & AI pipeline in background strictly for this employee
     setTimeout(async () => {
       try {
-        const detected = await detectExceptions({ tenantId, startDate: dateStr, endDate: dateStr });
-        const matched = detected.filter((e) => e.employeeId === employee.id);
-        for (const exc of matched) {
+        const detected = await detectExceptions({ tenantId, startDate: dateStr, endDate: dateStr, employeeId: employee.id });
+        for (const exc of detected) {
           const existingPending = queryOne<any>(
             "SELECT id FROM approvals WHERE exception_id = ? AND status = 'PENDING' LIMIT 1",
             [exc.id]

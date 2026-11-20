@@ -247,6 +247,7 @@ router.post('/clear-history', requireRole('MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN')
     execute('DELETE FROM approvals WHERE tenant_id = ?', [tenantId]);
     execute('DELETE FROM recommendations WHERE exception_id IN (SELECT id FROM exception_cases WHERE tenant_id = ?)', [tenantId]);
     execute('DELETE FROM investigations WHERE exception_id IN (SELECT id FROM exception_cases WHERE tenant_id = ?)', [tenantId]);
+    execute('DELETE FROM workflow_runs WHERE exception_id IN (SELECT id FROM exception_cases WHERE tenant_id = ?)', [tenantId]);
     execute('DELETE FROM exception_cases WHERE tenant_id = ?', [tenantId]);
     execute("UPDATE attendance_records SET status = 'RECORDED' WHERE tenant_id = ? AND status = 'FLAGGED'", [tenantId]);
     execute("DELETE FROM notifications WHERE tenant_id = ? AND (type = 'APPROVAL_REQUESTED' OR type = 'ATTENDANCE_ANOMALY')", [tenantId]);
