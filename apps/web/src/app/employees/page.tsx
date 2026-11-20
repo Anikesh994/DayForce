@@ -9,9 +9,11 @@ import { StatCard } from '@/components/ui/stat-card';
 import {
   Users, Search, Briefcase, Mail, Building2, UserCheck,
   LayoutList, LayoutGrid, X, CheckCircle2, Shield, ArrowRight,
-  BadgeCheck, Fingerprint, Calendar, Phone, Sparkles
+  BadgeCheck, Fingerprint, Calendar, Phone, Sparkles, Lock
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import Link from 'next/link';
+import { getUser } from '@/lib/auth';
 
 export default function EmployeesPage() {
   const [emps, setEmps] = useState<any[]>([]);
@@ -20,8 +22,14 @@ export default function EmployeesPage() {
   const [deptFilter, setDeptFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const user = getUser();
+  const isEmployee = user?.role === 'EMPLOYEE';
 
   useEffect(() => {
+    if (isEmployee) {
+      setL(false);
+      return;
+    }
     api.employees().then((r) => {
       setEmps(r.employees || []);
       setL(false);
@@ -77,6 +85,31 @@ export default function EmployeesPage() {
     for (let i = 0; i < (dept || '').length; i++) hash += dept.charCodeAt(i);
     return colors[hash % colors.length];
   };
+
+  if (isEmployee) {
+    return (
+      <div className="w-full max-w-[1536px] mx-auto p-6 md:p-8 space-y-6 animate-fade-in">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-5">Employee Directory</h1>
+        <Card>
+          <CardBody>
+            <EmptyState
+              icon={Lock}
+              title="Access Restricted"
+              description="The Organization Employee Directory is restricted to Department Managers and HR Administrators. Employees can review their personal punch events and shifts in Attendance & Punches."
+              action={
+                <Link
+                  href="/attendance"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-all cursor-pointer"
+                >
+                  Go to Attendance & Punches <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              }
+            />
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-[1536px] mx-auto p-6 md:p-8 space-y-6 animate-fade-in">
