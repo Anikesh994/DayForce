@@ -37,7 +37,51 @@ export default function EmployeesPage() {
   const [jobTitle, setJobTitle] = useState('Operations Specialist');
   const [newRole, setNewRole] = useState<'EMPLOYEE' | 'MANAGER'>('EMPLOYEE');
   const [saving, setSaving] = useState(false);
+
+  // Shift Assignment Modal state
+  const [shiftModalOpen, setShiftModalOpen] = useState(false);
+  const [selectedEmpForShift, setSelectedEmpForShift] = useState<any>(null);
+  const [shiftStartDate, setShiftStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [shiftEndDate, setShiftEndDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [shiftStartTime, setShiftStartTime] = useState('09:00');
+  const [shiftEndTime, setShiftEndTime] = useState('17:00');
+  const [shiftBreakMins, setShiftBreakMins] = useState(30);
+  const [shiftType, setShiftType] = useState<'REGULAR' | 'OVERNIGHT' | 'ON_CALL'>('REGULAR');
+  const [assigningShift, setAssigningShift] = useState(false);
+
   const { success, error: showError } = useToast();
+
+  function openAssignShiftModal(emp: any) {
+    setSelectedEmpForShift(emp);
+    setShiftModalOpen(true);
+  }
+
+  async function handleAssignShift(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedEmpForShift) return;
+    setAssigningShift(true);
+    try {
+      const res = await api.assignShift({
+        employeeId: selectedEmpForShift.id,
+        startDate: shiftStartDate,
+        endDate: shiftEndDate,
+        startTime: shiftStartTime,
+        endTime: shiftEndTime,
+        breakMinutes: shiftBreakMins,
+        shiftType,
+      });
+      success('Shift Timings Assigned', res.message || `Assigned ${shiftStartTime} - ${shiftEndTime} to ${selectedEmpForShift.first_name}.`);
+      setShiftModalOpen(false);
+    } catch (err: any) {
+      showError('Assignment Failed', err.message);
+    } finally {
+      setAssigningShift(false);
+    }
+  }
 
   async function handleCreateEmployee(e: React.FormEvent) {
     e.preventDefault();
@@ -302,6 +346,7 @@ export default function EmployeesPage() {
                 <th className="px-5 pb-1 text-left">Reporting Supervisor</th>
                 <th className="px-5 pb-1 text-left">Contact Channel</th>
                 <th className="px-5 pb-1 text-left">Employment Status</th>
+                <th className="px-5 pb-1 text-right">Work Timings</th>
               </tr>
             </thead>
             <tbody>
@@ -390,8 +435,8 @@ export default function EmployeesPage() {
                       </div>
                     </td>
 
-                    {/* Rightmost Cell with Rounded Right Boundary & Right Border */}
-                    <td className="px-5 py-4 rounded-r-2xl border-y-2 border-r-2 border-slate-200/90 group-hover:border-indigo-300 transition-colors">
+                    {/* Status Cell */}
+                    <td className="px-5 py-4 border-y-2 border-slate-200/90 group-hover:border-indigo-300 transition-colors">
                       <span className={clsx(
                         'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border shadow-xs',
                         sc.bg, sc.text, sc.border
@@ -399,6 +444,21 @@ export default function EmployeesPage() {
                         <span className={clsx('w-2 h-2 rounded-full', sc.dot, emp.employment_status === 'ACTIVE' && 'animate-pulse')} />
                         {emp.employment_status}
                       </span>
+                    </td>
+
+                    {/* Rightmost Cell with Shift Assignment Action */}
+                    <td className="px-5 py-4 rounded-r-2xl border-y-2 border-r-2 border-slate-200/90 group-hover:border-indigo-300 transition-colors text-right">
+                      {canAddEmployee ? (
+                        <button
+                          onClick={() => openAssignShiftModal(emp)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl border border-indigo-200 shadow-2xs transition-colors cursor-pointer"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Assign Timings</span>
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-400">Scheduled</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -468,6 +528,18 @@ export default function EmployeesPage() {
                     </span>
                     <span className="font-mono text-[11px] text-slate-600 truncate max-w-[170px]">{emp.email}</span>
                   </div>
+
+                  {canAddEmployee && (
+                    <div className="pt-2 border-t border-slate-100">
+                      <button
+                        onClick={() => openAssignShiftModal(emp)}
+                        className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl border border-indigo-200 transition-colors cursor-pointer"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Assign Shift Timings</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -582,6 +654,151 @@ export default function EmployeesPage() {
             >
               {saving ? <Spinner size="sm" /> : <UserPlus className="w-4 h-4" />}
               {saving ? 'Creating & Generating Shifts…' : 'Add Employee'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Assign Shift Timings Modal */}
+      <Modal
+        open={shiftModalOpen}
+        onClose={() => setShiftModalOpen(false)}
+        title={`Assign Shift Timings: ${selectedEmpForShift ? `${selectedEmpForShift.first_name} ${selectedEmpForShift.last_name}` : ''}`}
+        maxWidth="max-w-lg"
+      >
+        <form onSubmit={handleAssignShift} className="space-y-4">
+          {selectedEmpForShift && (
+            <div className="p-3 bg-indigo-50/80 border border-indigo-100 rounded-xl text-xs space-y-1">
+              <div className="font-bold text-slate-800">
+                {selectedEmpForShift.first_name} {selectedEmpForShift.last_name} ({selectedEmpForShift.employee_code})
+              </div>
+              <div className="text-slate-500">
+                Department: {selectedEmpForShift.department} • Role: {selectedEmpForShift.job_title}
+              </div>
+              <p className="text-[11px] text-indigo-700 pt-0.5">
+                Assigned shift timings determine the employee&apos;s punctuality baseline. Lateness is measured after a 10m grace period, and unclosed punches exceeding 1.5x shift duration trigger automatic AI anomaly investigation.
+              </p>
+            </div>
+          )}
+
+          {/* Quick Shift Presets */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Quick Presets</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: '🌅 09:00 – 17:00', start: '09:00', end: '17:00', name: 'Standard Day' },
+                { label: '⛅ 08:00 – 16:00', start: '08:00', end: '16:00', name: 'Early Bird' },
+                { label: '☀️ 10:00 – 18:00', start: '10:00', end: '18:00', name: 'Midday Core' },
+                { label: '🌙 23:00 – 07:00', start: '23:00', end: '07:00', name: 'Overnight' },
+              ].map((preset) => (
+                <button
+                  key={preset.start}
+                  type="button"
+                  onClick={() => {
+                    setShiftStartTime(preset.start);
+                    setShiftEndTime(preset.end);
+                  }}
+                  className={clsx(
+                    'p-2 rounded-xl border text-left text-xs font-medium transition-all cursor-pointer',
+                    shiftStartTime === preset.start && shiftEndTime === preset.end
+                      ? 'border-indigo-600 bg-indigo-50 text-indigo-800 font-semibold'
+                      : 'border-slate-200 hover:border-slate-300 text-slate-700 bg-white'
+                  )}
+                >
+                  <div>{preset.label}</div>
+                  <div className="text-[10px] text-slate-400">{preset.name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Shift Start Time (Local) *</label>
+              <input
+                type="time"
+                value={shiftStartTime}
+                onChange={(e) => setShiftStartTime(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Shift End Time (Local) *</label>
+              <input
+                type="time"
+                value={shiftEndTime}
+                onChange={(e) => setShiftEndTime(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Effective From Date *</label>
+              <input
+                type="date"
+                value={shiftStartDate}
+                onChange={(e) => setShiftStartDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Apply Through Date *</label>
+              <input
+                type="date"
+                value={shiftEndDate}
+                onChange={(e) => setShiftEndDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Break Duration (Mins)</label>
+              <input
+                type="number"
+                value={shiftBreakMins}
+                onChange={(e) => setShiftBreakMins(parseInt(e.target.value) || 0)}
+                min={0}
+                max={180}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Shift Category</label>
+              <select
+                value={shiftType}
+                onChange={(e) => setShiftType(e.target.value as any)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none bg-white focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="REGULAR">Regular Shift</option>
+                <option value="OVERNIGHT">Overnight Shift</option>
+                <option value="ON_CALL">On-Call Shift</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setShiftModalOpen(false)}
+              className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={assigningShift}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-indigo-200 disabled:opacity-60 transition-all cursor-pointer"
+            >
+              {assigningShift ? <Spinner size="sm" /> : <Calendar className="w-4 h-4" />}
+              {assigningShift ? 'Assigning Shifts…' : 'Save Shift Timings'}
             </button>
           </div>
         </form>

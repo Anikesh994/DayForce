@@ -76,6 +76,25 @@ export const api = {
       method: 'POST', body: JSON.stringify(data),
     }),
 
+  // Shifts & Work Schedule Management
+  myShift: () => request<any>('/api/v1/shifts/my-shift'),
+  shifts: (params?: Record<string, string>) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return request<any>(`/api/v1/shifts${qs}`);
+  },
+  assignShift: (data: {
+    employeeId: string;
+    startDate: string;
+    endDate?: string;
+    startTime: string;
+    endTime: string;
+    breakMinutes?: number;
+    shiftType?: string;
+  }) =>
+    request<{ success: boolean; message: string; assignedDates: string[]; employeeName: string }>('/api/v1/shifts/assign', {
+      method: 'POST', body: JSON.stringify(data),
+    }),
+
   // Attendance
   attendance: (params?: Record<string, string>) => {
     const qs = params ? '?' + new URLSearchParams(params).toString() : '';
