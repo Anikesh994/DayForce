@@ -8,6 +8,7 @@ import { Card, CardBody } from '@/components/ui/card';
 import { Badge, severityBadge, statusBadge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/modal';
+import { EmptyInboxIllustration } from '@/components/ui/Illustrations';
 import {
   CheckCircle2, XCircle, MessageSquare, RefreshCw,
   Lock, ArrowRight, Shield, AlertTriangle, Sparkles, Filter
@@ -179,7 +180,7 @@ export default function ApprovalsPage() {
         <Card>
           <CardBody className="py-12 text-center">
             <EmptyState
-              icon={CheckCircle2}
+              illustration={<EmptyInboxIllustration className="w-36 h-36" />}
               title={statusTab === 'PENDING' ? 'No pending approvals' : 'No records found'}
               description={
                 statusTab === 'PENDING'

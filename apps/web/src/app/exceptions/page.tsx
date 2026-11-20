@@ -6,6 +6,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Card, CardBody } from '@/components/ui/card';
 import { Badge, severityBadge, statusBadge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ComplianceShieldIllustration } from '@/components/ui/Illustrations';
 import { AlertTriangle, Search, RefreshCw, ChevronRight, Filter, X } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -108,6 +109,7 @@ export default function ExceptionsPage() {
         ) : filtered.length === 0 ? (
           <CardBody>
             <EmptyState
+              illustration={<ComplianceShieldIllustration className="w-28 h-28" />}
               icon={AlertTriangle}
               title="No exceptions found"
               description={hasFilters ? 'Try adjusting your filters' : 'Run a scan from the dashboard to detect attendance anomalies'}
