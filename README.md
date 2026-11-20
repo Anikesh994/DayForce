@@ -1,5 +1,6 @@
 # AttendWise AI
 
+PPT LINK- https://docs.google.com/presentation/d/1WPpH4_VT2WVhPiCrjplRPF-ytL6J-iOo/edit?usp=sharing&ouid=109804595680751599445&rtpof=true&sd=true
 <div align="center">
 
 ![AttendWise AI Banner](https://img.shields.io/badge/AttendWise_AI-Autonomous_Workforce_Resolution-4F46E5?style=for-the-badge&logo=shield&logoColor=white)
