@@ -552,7 +552,7 @@ export default function EmployeesPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Add New Employee"
-        maxWidth="max-w-lg"
+        size="md"
       >
         <form onSubmit={handleCreateEmployee} className="space-y-4">
           <p className="text-xs text-slate-500">
@@ -664,7 +664,7 @@ export default function EmployeesPage() {
         open={shiftModalOpen}
         onClose={() => setShiftModalOpen(false)}
         title={`Assign Shift Timings: ${selectedEmpForShift ? `${selectedEmpForShift.first_name} ${selectedEmpForShift.last_name}` : ''}`}
-        maxWidth="max-w-lg"
+        size="md"
       >
         <form onSubmit={handleAssignShift} className="space-y-4">
           {selectedEmpForShift && (

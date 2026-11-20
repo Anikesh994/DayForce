@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { queryAll, queryOne, execute } from '../db/index.js';
+import { queryAll, queryOne, execute, transaction } from '../db/index.js';
 import { publishEvent } from '../events/publisher.js';
 import { runInvestigationPipeline } from '../domain/investigationRunner.js';
 
@@ -238,6 +238,24 @@ router.post('/:id/cancel', requireRole('HR_ADMIN', 'SYSTEM_ADMIN'), (req: Reques
   );
 
   res.json({ message: 'Exception cancelled', exceptionId: id });
+});
+
+// POST /api/v1/exceptions/clear-history — Purge all historical exceptions, approvals, recommendations, and investigations
+router.post('/clear-history', requireRole('MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN'), (req: Request, res: Response): void => {
+  const tenantId = req.user!.tenantId;
+  transaction(() => {
+    execute('DELETE FROM approvals WHERE tenant_id = ?', [tenantId]);
+    execute('DELETE FROM recommendations WHERE exception_id IN (SELECT id FROM exception_cases WHERE tenant_id = ?)', [tenantId]);
+    execute('DELETE FROM investigations WHERE exception_id IN (SELECT id FROM exception_cases WHERE tenant_id = ?)', [tenantId]);
+    execute('DELETE FROM exception_cases WHERE tenant_id = ?', [tenantId]);
+    execute("UPDATE attendance_records SET status = 'RECORDED' WHERE tenant_id = ? AND status = 'FLAGGED'", [tenantId]);
+    execute("DELETE FROM notifications WHERE tenant_id = ? AND (type = 'APPROVAL_REQUESTED' OR type = 'ATTENDANCE_ANOMALY')", [tenantId]);
+  });
+
+  res.json({
+    success: true,
+    message: 'All historical exceptions, approvals, and anomaly records cleared successfully.',
+  });
 });
 
 export default router;

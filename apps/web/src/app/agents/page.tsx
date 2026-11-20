@@ -38,7 +38,7 @@ export default function AgentsArchitecturePage() {
   useEffect(() => {
     api.exceptions({ limit: '20' }).then((res) => {
       const rawList = res.exceptions || [];
-      const list = Array.from(new Map(rawList.map((e: any) => [e.id, e])).values());
+      const list = Array.from(new Map<string, any>(rawList.map((e: any) => [e.id, e])).values());
       setExceptions(list);
       if (list.length > 0) {
         setSelectedExcId(list[0].id);

@@ -58,8 +58,18 @@ router.get('/', (req: Request, res: Response): void => {
   };
 
   const rows = queryAll<any>(sql, params);
+
+  // In-memory deduplication: guarantee strictly 1 active approval item per exception case
+  const dedupedMap = new Map<string, any>();
+  for (const r of rows) {
+    if (!dedupedMap.has(r.exception_id)) {
+      dedupedMap.set(r.exception_id, r);
+    }
+  }
+  const uniqueRows = Array.from(dedupedMap.values());
+
   res.json({
-    approvals: rows.map((r) => {
+    approvals: uniqueRows.map((r) => {
       const parsedChanges = safeParse(r.proposed_changes_json || r.proposed_changes, []);
       const parsedCitations = safeParse(r.citations_json || r.policy_citations, []);
       return {

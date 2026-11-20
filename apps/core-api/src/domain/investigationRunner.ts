@@ -129,9 +129,24 @@ export async function runInvestigationPipeline(opts: {
   }
 
   // 4. Construct investigation & recommendation (from AI Service or grounded fallback)
-  const invId = `inv-${uuidv4().substring(0, 8)}`;
-  const recId = `rec-${uuidv4().substring(0, 8)}`;
-  const approvalId = `appr-${uuidv4().substring(0, 8)}`;
+  // Check for existing records for this exception to ensure strict 1:1 idempotency
+  const existingInv = queryOne<any>(
+    'SELECT id FROM investigations WHERE exception_id = ? ORDER BY created_at DESC LIMIT 1',
+    [exceptionId]
+  );
+  const existingRec = queryOne<any>(
+    'SELECT id FROM recommendations WHERE exception_id = ? ORDER BY created_at DESC LIMIT 1',
+    [exceptionId]
+  );
+  const existingAppr = queryOne<any>(
+    'SELECT id FROM approvals WHERE tenant_id = ? AND exception_id = ? ORDER BY requested_at DESC LIMIT 1',
+    [tenantId, exceptionId]
+  );
+
+  const invId = existingInv?.id || `inv-${uuidv4().substring(0, 8)}`;
+  const recId = existingRec?.id || `rec-${uuidv4().substring(0, 8)}`;
+  const approvalId = existingAppr?.id || `appr-${uuidv4().substring(0, 8)}`;
+  const idempotencyKey = `approval:${tenantId}:${exceptionId}`;
 
   let summary = aiResponse?.investigation?.summary;
   let confirmedFacts = aiResponse?.investigation?.confirmed_facts || [
@@ -209,7 +224,6 @@ export async function runInvestigationPipeline(opts: {
   }
 
   // 5. Persist everything atomically to SQLite
-  const idempotencyKey = `approval:${exceptionId}:${recId}`;
   // 4.1 Validate Proposed Changes Against Enterprise Whitelist Guardrails
   if (proposedChanges.length > 0) {
     const guardrailCheck = validateProposedChangesGuardrail(
@@ -238,38 +252,81 @@ export async function runInvestigationPipeline(opts: {
   const citationsJson = JSON.stringify(citations);
 
   transaction(() => {
-    // 5.1 Save Investigation
-    execute(
-      `INSERT OR REPLACE INTO investigations
-         (id, exception_id, workflow_run_id, summary, confirmed_facts, confirmed_facts_json, missing_info, missing_info_json, conflicts, conflicts_json, confidence_score, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-      [
-        invId, exceptionId, correlationId,
-        summary,
-        confirmedFactsJson, confirmedFactsJson,
-        missingInfoJson, missingInfoJson,
-        conflictsJson, conflictsJson,
-        confidenceScore,
-      ]
-    );
+    // 5.1 Save or Update Investigation (Single record per exception)
+    if (existingInv) {
+      execute(
+        `UPDATE investigations SET
+           workflow_run_id = ?, summary = ?,
+           confirmed_facts = ?, confirmed_facts_json = ?,
+           missing_info = ?, missing_info_json = ?,
+           conflicts = ?, conflicts_json = ?,
+           confidence_score = ?
+         WHERE id = ?`,
+        [
+          correlationId,
+          summary,
+          confirmedFactsJson, confirmedFactsJson,
+          missingInfoJson, missingInfoJson,
+          conflictsJson, conflictsJson,
+          confidenceScore,
+          existingInv.id,
+        ]
+      );
+    } else {
+      execute(
+        `INSERT INTO investigations
+           (id, exception_id, workflow_run_id, summary, confirmed_facts, confirmed_facts_json, missing_info, missing_info_json, conflicts, conflicts_json, confidence_score, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+        [
+          invId, exceptionId, correlationId,
+          summary,
+          confirmedFactsJson, confirmedFactsJson,
+          missingInfoJson, missingInfoJson,
+          conflictsJson, conflictsJson,
+          confidenceScore,
+        ]
+      );
+    }
 
-    // 5.2 Save Recommendation
-    execute(
-      `INSERT OR REPLACE INTO recommendations
-         (id, exception_id, investigation_id, recommendation_type, proposed_action,
-          proposed_changes, proposed_changes_json, rationale, supporting_facts, evidence_json, policy_citations, citations_json, risk_level, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', datetime('now'))`,
-      [
-        recId, exceptionId, invId,
-        exc.exception_type === 'MISSING_CLOCK_OUT' ? 'ADJUST_CLOCK_OUT' : 'REVIEW_TIME',
-        proposedAction,
-        proposedChangesJson, proposedChangesJson,
-        rationale,
-        supportingFactsJson, supportingFactsJson,
-        citationsJson, citationsJson,
-        riskLevel,
-      ]
-    );
+    // 5.2 Save or Update Recommendation (Single record per exception)
+    if (existingRec) {
+      execute(
+        `UPDATE recommendations SET
+           investigation_id = ?, recommendation_type = ?, proposed_action = ?,
+           proposed_changes = ?, proposed_changes_json = ?, rationale = ?,
+           supporting_facts = ?, evidence_json = ?, policy_citations = ?, citations_json = ?,
+           risk_level = ?, status = 'PENDING'
+         WHERE id = ?`,
+        [
+          invId,
+          exc.exception_type === 'MISSING_CLOCK_OUT' ? 'ADJUST_CLOCK_OUT' : 'REVIEW_TIME',
+          proposedAction,
+          proposedChangesJson, proposedChangesJson,
+          rationale,
+          supportingFactsJson, supportingFactsJson,
+          citationsJson, citationsJson,
+          riskLevel,
+          existingRec.id,
+        ]
+      );
+    } else {
+      execute(
+        `INSERT INTO recommendations
+           (id, exception_id, investigation_id, recommendation_type, proposed_action,
+            proposed_changes, proposed_changes_json, rationale, supporting_facts, evidence_json, policy_citations, citations_json, risk_level, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', datetime('now'))`,
+        [
+          recId, exceptionId, invId,
+          exc.exception_type === 'MISSING_CLOCK_OUT' ? 'ADJUST_CLOCK_OUT' : 'REVIEW_TIME',
+          proposedAction,
+          proposedChangesJson, proposedChangesJson,
+          rationale,
+          supportingFactsJson, supportingFactsJson,
+          citationsJson, citationsJson,
+          riskLevel,
+        ]
+      );
+    }
 
     // 5.3 Find assigned approver user ID
     let assignedApproverId: string | null = null;
@@ -285,25 +342,49 @@ export async function runInvestigationPipeline(opts: {
       assignedApproverId = defaultMgr?.id ?? null;
     }
 
-    // 5.4 Save Approval Record (Expires in 48 hours)
+    // 5.4 Save or Update Approval Record (Strictly 1:1 per exception)
     const expiresAt = new Date(Date.now() + 48 * 3600000).toISOString();
-    execute(
-      `INSERT OR REPLACE INTO approvals
-         (id, tenant_id, exception_id, recommendation_id, approval_idempotency_key,
-          required_role, assigned_approver_id, status, requested_at, expires_at, case_version)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', datetime('now'), ?, ?)`,
-      [
-        approvalId,
-        tenantId,
-        exceptionId,
-        recId,
-        idempotencyKey,
-        requiredRole,
-        assignedApproverId,
-        expiresAt,
-        exc.version + 1,
-      ]
-    );
+    if (existingAppr) {
+      execute(
+        `UPDATE approvals SET
+           recommendation_id = ?,
+           approval_idempotency_key = ?,
+           required_role = ?,
+           assigned_approver_id = ?,
+           status = 'PENDING',
+           requested_at = datetime('now'),
+           expires_at = ?,
+           case_version = ?
+         WHERE id = ?`,
+        [
+          recId,
+          idempotencyKey,
+          requiredRole,
+          assignedApproverId,
+          expiresAt,
+          exc.version + 1,
+          existingAppr.id,
+        ]
+      );
+    } else {
+      execute(
+        `INSERT INTO approvals
+           (id, tenant_id, exception_id, recommendation_id, approval_idempotency_key,
+            required_role, assigned_approver_id, status, requested_at, expires_at, case_version)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', datetime('now'), ?, ?)`,
+        [
+          approvalId,
+          tenantId,
+          exceptionId,
+          recId,
+          idempotencyKey,
+          requiredRole,
+          assignedApproverId,
+          expiresAt,
+          exc.version + 1,
+        ]
+      );
+    }
 
     // 5.5 Update Exception Case Status to WAITING_FOR_APPROVAL
     execute(

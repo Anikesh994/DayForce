@@ -2,6 +2,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { getUser } from '@/lib/auth';
+import { useToast } from '@/components/ui/toast';
+import { ConfirmDialog } from '@/components/ui/modal';
 import { Spinner } from '@/components/ui/spinner';
 import { Card, CardBody } from '@/components/ui/card';
 import { Badge, severityBadge, statusBadge } from '@/components/ui/badge';
@@ -12,7 +15,7 @@ import {
   AlertTriangle, Search, RefreshCw, ChevronRight, Filter, X,
   Clock, ShieldAlert, Sparkles, CheckCircle2, Bot, ArrowRight,
   TrendingUp, Calendar, AlertCircle, ClockAlert, AlarmClockOff,
-  CalendarX, AlertOctagon, LogIn, LogOut, Activity, Building2
+  CalendarX, AlertOctagon, LogIn, LogOut, Activity, Building2, Trash2
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -89,6 +92,12 @@ export default function ExceptionsPage() {
   const [type,    setType]    = useState('');
   const [severity,setSeverity]= useState('');
   const [quickFilter, setQuickFilter] = useState<'ALL' | 'HIGH' | 'WAITING' | 'RESOLVED'>('ALL');
+  const [clearing, setClearing] = useState(false);
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const user = getUser();
+  const { success, error: showError } = useToast();
+
+  const isManagerOrAdmin = user?.role === 'MANAGER' || user?.role === 'HR_ADMIN' || user?.role === 'SYSTEM_ADMIN';
 
   async function load() {
     setLoading(true);
@@ -106,6 +115,20 @@ export default function ExceptionsPage() {
       console.error(e);
     }
     setLoading(false);
+  }
+
+  async function handleClearHistory() {
+    setClearing(true);
+    setConfirmClearOpen(false);
+    try {
+      await api.clearExceptionHistory();
+      success('History Cleared', 'All historical exceptions and approvals have been wiped cleanly.');
+      await load();
+    } catch (err: any) {
+      showError('Clear Failed', err.message || 'Unable to clear historical exceptions');
+    } finally {
+      setClearing(false);
+    }
   }
 
   useEffect(() => { load(); }, [status, type, severity]);
@@ -148,6 +171,17 @@ export default function ExceptionsPage() {
 
   return (
     <div className="w-full max-w-[1536px] mx-auto p-6 md:p-8 space-y-6 animate-fade-in">
+      <ConfirmDialog
+        open={confirmClearOpen}
+        onClose={() => setConfirmClearOpen(false)}
+        onConfirm={handleClearHistory}
+        title="Clear All Historical Exceptions?"
+        message="This will completely wipe all historical exceptions, investigations, recommendations, and approvals. A clean baseline will be restored. This cannot be undone."
+        confirmLabel="Clear All History"
+        variant="danger"
+        loading={clearing}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -162,7 +196,7 @@ export default function ExceptionsPage() {
             Deterministic anomaly detection with LangGraph multi-agent RAG evidence synthesis
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {hasFilters && (
             <button
               onClick={clearFilters}
@@ -171,6 +205,19 @@ export default function ExceptionsPage() {
               <X className="w-3.5 h-3.5" /> Clear filters
             </button>
           )}
+
+          {isManagerOrAdmin && (
+            <button
+              onClick={() => setConfirmClearOpen(true)}
+              disabled={clearing || loading}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-60"
+              title="Purge all historical exceptions and approvals"
+            >
+              {clearing ? <Spinner size="sm" /> : <Trash2 className="w-3.5 h-3.5 text-rose-600" />}
+              <span>Clear History</span>
+            </button>
+          )}
+
           <button
             onClick={load}
             className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-all shadow-xs cursor-pointer"

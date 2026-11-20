@@ -206,8 +206,9 @@ router.post('/punch', (req: Request, res: Response): void => {
         : queryOne<any>('SELECT * FROM shifts WHERE employee_id = ? AND local_date = ? LIMIT 1', [employee.id, active.created_at.slice(0, 10)]);
 
       if (prevShift) {
-        const prevExcId = `exc-${uuidv4().substring(0, 8)}`;
         const dedupeKey = `${tenantId}|${employee.id}|${prevShift.id}|MISSING_CLOCK_OUT`;
+        const existingExc = queryOne<any>('SELECT id FROM exception_cases WHERE dedupe_key = ?', [dedupeKey]);
+        const prevExcId = existingExc ? existingExc.id : `exc-${uuidv4().substring(0, 8)}`;
         const facts = {
           scheduledStart: prevShift.scheduled_start_utc,
           scheduledEnd: prevShift.scheduled_end_utc,
@@ -218,24 +219,37 @@ router.post('/punch', (req: Request, res: Response): void => {
         };
         const factsStr = JSON.stringify(facts);
 
-        execute(
-          `INSERT OR REPLACE INTO exception_cases
-             (id, tenant_id, employee_id, shift_id, attendance_record_id, exception_type, severity, status, dedupe_key, facts, facts_json, version, detected_at, assigned_manager_id)
-           VALUES (?, ?, ?, ?, ?, 'MISSING_CLOCK_OUT', 'HIGH', 'DETECTED', ?, ?, ?, 1, datetime('now'), ?)`,
-          [
-            prevExcId, tenantId, employee.id, prevShift.id, active.id,
-            dedupeKey, factsStr, factsStr, employee.manager_employee_id || null,
-          ]
-        );
+        if (existingExc) {
+          execute(
+            'UPDATE exception_cases SET facts = ?, facts_json = ?, severity = ? WHERE id = ?',
+            [factsStr, factsStr, 'HIGH', existingExc.id]
+          );
+        } else {
+          execute(
+            `INSERT INTO exception_cases
+               (id, tenant_id, employee_id, shift_id, attendance_record_id, exception_type, severity, status, dedupe_key, facts, facts_json, version, detected_at, assigned_manager_id)
+             VALUES (?, ?, ?, ?, ?, 'MISSING_CLOCK_OUT', 'HIGH', 'DETECTED', ?, ?, ?, 1, datetime('now'), ?)`,
+            [
+              prevExcId, tenantId, employee.id, prevShift.id, active.id,
+              dedupeKey, factsStr, factsStr, employee.manager_employee_id || null,
+            ]
+          );
+        }
 
-        setTimeout(() => {
-          runInvestigationPipeline({
-            exceptionId: prevExcId,
-            tenantId,
-            correlationId: `consecutive-in-${Date.now()}`,
-            requestedByUserId: req.user!.id,
-          }).catch(() => {});
-        }, 100);
+        const existingPending = queryOne<any>(
+          "SELECT id FROM approvals WHERE exception_id = ? AND status = 'PENDING' LIMIT 1",
+          [prevExcId]
+        );
+        if (!existingPending) {
+          setTimeout(() => {
+            runInvestigationPipeline({
+              exceptionId: prevExcId,
+              tenantId,
+              correlationId: `consecutive-in-${Date.now()}`,
+              requestedByUserId: req.user!.id,
+            }).catch(() => {});
+          }, 100);
+        }
       }
       consecutiveNotice = ' (Previous unclosed shift flagged as Missing Clock-Out)';
     }
@@ -310,12 +324,18 @@ router.post('/punch', (req: Request, res: Response): void => {
         const detected = await detectExceptions({ tenantId, startDate: dateStr, endDate: dateStr });
         const matched = detected.filter((e) => e.employeeId === employee.id);
         for (const exc of matched) {
-          await runInvestigationPipeline({
-            exceptionId: exc.id,
-            tenantId,
-            correlationId: `punch-in-${Date.now()}`,
-            requestedByUserId: req.user!.id,
-          }).catch(() => {});
+          const existingPending = queryOne<any>(
+            "SELECT id FROM approvals WHERE exception_id = ? AND status = 'PENDING' LIMIT 1",
+            [exc.id]
+          );
+          if (!existingPending) {
+            await runInvestigationPipeline({
+              exceptionId: exc.id,
+              tenantId,
+              correlationId: `punch-in-${Date.now()}`,
+              requestedByUserId: req.user!.id,
+            }).catch(() => {});
+          }
         }
       } catch (err) {
         // silent
@@ -376,12 +396,18 @@ router.post('/punch', (req: Request, res: Response): void => {
         const detected = await detectExceptions({ tenantId, startDate: dateStr, endDate: dateStr });
         const matched = detected.filter((e) => e.employeeId === employee.id);
         for (const exc of matched) {
-          await runInvestigationPipeline({
-            exceptionId: exc.id,
-            tenantId,
-            correlationId: `punch-out-${Date.now()}`,
-            requestedByUserId: req.user!.id,
-          }).catch(() => {});
+          const existingPending = queryOne<any>(
+            "SELECT id FROM approvals WHERE exception_id = ? AND status = 'PENDING' LIMIT 1",
+            [exc.id]
+          );
+          if (!existingPending) {
+            await runInvestigationPipeline({
+              exceptionId: exc.id,
+              tenantId,
+              correlationId: `punch-out-${Date.now()}`,
+              requestedByUserId: req.user!.id,
+            }).catch(() => {});
+          }
         }
       } catch (err) {
         // silent

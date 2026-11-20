@@ -119,6 +119,8 @@ export const api = {
   investigate:  (id: string) => request<any>(`/api/v1/exceptions/${id}/investigate`, { method: 'POST' }),
   cancelException: (id: string, reason?: string) =>
     request<any>(`/api/v1/exceptions/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  clearExceptionHistory: () =>
+    request<{ success: boolean; message: string }>('/api/v1/exceptions/clear-history', { method: 'POST' }),
 
   // Approvals
   approvals:      (status?: string) =>

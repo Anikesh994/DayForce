@@ -11,7 +11,7 @@ import { ConfirmDialog } from '@/components/ui/modal';
 import { EmptyInboxIllustration } from '@/components/ui/Illustrations';
 import {
   CheckCircle2, XCircle, MessageSquare, RefreshCw,
-  Lock, ArrowRight, Shield, AlertTriangle, Sparkles, Filter
+  Lock, ArrowRight, Shield, AlertTriangle, Sparkles, Filter, Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 import { clsx } from 'clsx';
@@ -40,6 +40,8 @@ export default function ApprovalsPage() {
   const [comment,    setComment]    = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const user = getUser();
   const { success, error: showError } = useToast();
 
@@ -54,11 +56,28 @@ export default function ApprovalsPage() {
     setLoading(true);
     try {
       const r = await api.approvals(statusTab === 'ALL' ? undefined : statusTab);
-      setApprovals(r.approvals || []);
+      const list = r.approvals || [];
+      // Strictly deduplicate by exception_id: guarantees at most 1 approval row per exception
+      const uniqueApprovals = Array.from(new Map(list.map((a: any) => [a.exception_id, a])).values());
+      setApprovals(uniqueApprovals);
     } catch (e: any) {
       console.error('Approvals fetch error:', e);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleClearHistory() {
+    setClearing(true);
+    setConfirmClearOpen(false);
+    try {
+      await api.clearExceptionHistory();
+      success('History Cleared', 'All historical exceptions and approvals have been removed.');
+      await load();
+    } catch (err: any) {
+      showError('Clear Failed', err.message || 'Unable to clear historical exceptions');
+    } finally {
+      setClearing(false);
     }
   }
 
@@ -153,6 +172,17 @@ export default function ApprovalsPage() {
         loading={submitting}
       />
 
+      <ConfirmDialog
+        open={confirmClearOpen}
+        onClose={() => setConfirmClearOpen(false)}
+        onConfirm={handleClearHistory}
+        title="Clear All Historical Exceptions & Approvals?"
+        message="This will completely purge historical attendance exceptions, recommendations, and approval items, providing a fresh clean state. This cannot be undone."
+        confirmLabel="Clear All History"
+        variant="danger"
+        loading={clearing}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -187,14 +217,26 @@ export default function ApprovalsPage() {
 
           {/* Quick Scan to Populate */}
           {isManagerOrAdmin && (
-            <button
-              onClick={handleScanAndPopulate}
-              disabled={generating}
-              className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl border border-indigo-200 transition-colors disabled:opacity-60"
-            >
-              {generating ? <Spinner size="sm" /> : <Sparkles className="w-3.5 h-3.5 text-indigo-600" />}
-              {generating ? 'Scanning…' : 'Generate Approvals'}
-            </button>
+            <>
+              <button
+                onClick={handleScanAndPopulate}
+                disabled={generating || clearing}
+                className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl border border-indigo-200 transition-colors disabled:opacity-60 cursor-pointer"
+              >
+                {generating ? <Spinner size="sm" /> : <Sparkles className="w-3.5 h-3.5 text-indigo-600" />}
+                {generating ? 'Scanning…' : 'Generate Approvals'}
+              </button>
+
+              <button
+                onClick={() => setConfirmClearOpen(true)}
+                disabled={generating || clearing}
+                className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-xl border border-rose-200 transition-colors disabled:opacity-60 cursor-pointer"
+                title="Purge all historical exceptions and approvals"
+              >
+                {clearing ? <Spinner size="sm" /> : <Trash2 className="w-3.5 h-3.5 text-rose-600" />}
+                <span>Clear History</span>
+              </button>
+            </>
           )}
 
           <button
