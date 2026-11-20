@@ -51,5 +51,4 @@ docs/
 **/*.txt
 
 # Exclude presentations
-*.pptx
 presentation.html
