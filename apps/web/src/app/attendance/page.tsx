@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StatCard } from '@/components/ui/stat-card';
 import { PunchClockWidget } from '@/components/PunchClockWidget';
+import { ClockPunchIllustration } from '@/components/ui/Illustrations';
 import { Clock, Search, RefreshCw, AlertTriangle, CheckCircle2, Users } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -108,7 +109,12 @@ export default function AttendancePage() {
           <CardBody className="flex justify-center py-16"><Spinner size="lg" /></CardBody>
         ) : filtered.length === 0 ? (
           <CardBody>
-            <EmptyState icon={Clock} title="No attendance records" description="Records will appear once the system is seeded and running." />
+            <EmptyState
+              illustration={<ClockPunchIllustration className="w-28 h-28" />}
+              icon={Clock}
+              title="No attendance records"
+              description="Records will appear once the system is seeded and running."
+            />
           </CardBody>
         ) : (
           <div className="overflow-x-auto">

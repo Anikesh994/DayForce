@@ -7,6 +7,7 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
+import { ComplianceShieldIllustration } from '@/components/ui/Illustrations';
 import {
   FileText, CheckCircle2, AlertCircle, BookOpen, Search, Hash, Calendar,
   UploadCloud, Plus, Layers, Sparkles, FileCode, ArrowRight, HelpCircle
@@ -205,11 +206,16 @@ export default function PoliciesPage() {
       </div>
 
       {/* Info Banner: Explaining RAG & User Input */}
-      <div className="bg-gradient-to-r from-indigo-50/70 via-violet-50/70 to-slate-50 p-4 rounded-2xl border border-indigo-100 flex items-start gap-3">
-        <Sparkles className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-        <div className="text-xs text-slate-600 leading-relaxed">
-          <span className="font-semibold text-slate-800">How Policies Power the AI Agents: </span>
-          When an attendance exception occurs, the <strong>Policy RAG Agent</strong> extracts semantic query vectors and retrieves relevant clauses from these documents. The <strong>Resolution Planner Agent</strong> uses the citations to compute exact timecard corrections, while the <strong>Policy Reviewer Agent</strong> audits recommendations to strictly prevent ungrounded hallucinations.
+      <div className="bg-gradient-to-r from-indigo-50/80 via-violet-50/70 to-slate-50 p-4 rounded-2xl border border-indigo-100 flex items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <Sparkles className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+          <div className="text-xs text-slate-600 leading-relaxed max-w-3xl">
+            <span className="font-semibold text-slate-800">How Policies Power the AI Agents: </span>
+            When an attendance exception occurs, the <strong>Policy RAG Agent</strong> extracts semantic query vectors and retrieves relevant clauses from these documents. The <strong>Resolution Planner Agent</strong> uses the citations to compute exact timecard corrections, while the <strong>Policy Reviewer Agent</strong> audits recommendations to strictly prevent ungrounded hallucinations.
+          </div>
+        </div>
+        <div className="hidden md:flex flex-shrink-0">
+          <ComplianceShieldIllustration className="w-16 h-16" />
         </div>
       </div>
 
@@ -271,6 +277,7 @@ export default function PoliciesPage() {
 
               {filtered.length === 0 && (
                 <EmptyState
+                  illustration={<ComplianceShieldIllustration className="w-24 h-24" />}
                   icon={FileText}
                   title="No policies found"
                   description="Upload a policy document to empower the RAG agents."

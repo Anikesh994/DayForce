@@ -1,6 +1,6 @@
 import { clsx } from 'clsx';
 
-type Variant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'muted';
+type Variant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'muted' | 'indigo';
 
 const variants: Record<Variant, string> = {
   default:  'bg-slate-100 text-slate-700',
@@ -8,6 +8,7 @@ const variants: Record<Variant, string> = {
   warning:  'bg-amber-100 text-amber-700',
   danger:   'bg-red-100 text-red-700',
   info:     'bg-blue-100 text-blue-700',
+  indigo:   'bg-indigo-100 text-indigo-700',
   muted:    'bg-slate-50 text-slate-500',
 };
 

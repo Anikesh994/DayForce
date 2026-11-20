@@ -5,6 +5,7 @@ import { useToast } from '@/components/ui/toast';
 import { Card, CardBody, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
+import { RobotAnalystIllustration } from '@/components/ui/Illustrations';
 import {
   Bot, Brain, Search, CheckCircle2, ShieldCheck, ArrowRight,
   Zap, FileText, Activity, AlertTriangle, Layers, Play, RefreshCw,
@@ -257,10 +258,13 @@ export default function AgentsArchitecturePage() {
       {activeTab === 'visualizer' ? (
         <>
           {/* Agent Simulation Control Bar */}
-          <Card className="border-indigo-100 bg-gradient-to-r from-indigo-50/60 via-violet-50/40 to-slate-50">
+          <Card className="border-indigo-100 bg-gradient-to-r from-indigo-50/60 via-violet-50/40 to-slate-50 overflow-hidden">
             <CardBody className="p-5">
               <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="hidden sm:block flex-shrink-0">
+                    <RobotAnalystIllustration className="w-16 h-16" />
+                  </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Select Attendance Exception Case to Investigate:

@@ -9,10 +9,13 @@ import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PunchClockWidget } from '@/components/PunchClockWidget';
+import { WorkforceAnalytics } from '@/components/charts/WorkforceAnalytics';
+import { RobotAnalystIllustration, ComplianceShieldIllustration, EmptyInboxIllustration } from '@/components/ui/Illustrations';
 import {
   AlertTriangle, CheckCircle2, Clock, Users,
   TrendingUp, FileText, Shield, RefreshCw,
-  Sparkles, ArrowRight, Zap, Brain, Activity
+  Sparkles, ArrowRight, Zap, Brain, Activity,
+  ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -136,6 +139,48 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* AI Assistant Hero Banner with Vector Illustration */}
+      <div className="bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white border border-indigo-800/50 shadow-xl overflow-hidden relative">
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-3 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-400/30">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Grok AI Agentic Intelligence Active</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Autonomous Exception Resolution with Human Oversight
+            </h2>
+            <p className="text-sm text-indigo-200/80 leading-relaxed">
+              AttendWise AI correlates employee schedules, scans punch events for anomalies, cross-references company policies via dense vector RAG, and proposes compliant timecard adjustments.
+            </p>
+            <div className="flex flex-wrap gap-3 pt-1">
+              <Link
+                href="/approvals"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-xs rounded-xl shadow-md transition-all"
+              >
+                <span>Review Pending Approvals ({kpis.pendingApprovals ?? 0})</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+              <Link
+                href="/agents"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-semibold text-xs rounded-xl backdrop-blur-sm transition-all border border-white/10"
+              >
+                <span>Explore 7-Stage Agent Pipeline</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex-shrink-0 flex items-center justify-center">
+            <RobotAnalystIllustration className="w-44 h-44 sm:w-52 sm:h-52 drop-shadow-2xl" />
+          </div>
+        </div>
+
+        {/* Ambient background glow circles */}
+        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-16 -right-16 w-64 h-64 bg-violet-600/20 rounded-full blur-3xl pointer-events-none" />
+      </div>
+
       {/* Web Punch Clock for Employees & Self-Service */}
       <PunchClockWidget onPunchSuccess={load} />
 
@@ -224,6 +269,12 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Interactive Charts: Velocity Trends, Anomaly Donut, Hourly Heatmap & AI Grounding */}
+      <WorkforceAnalytics
+        exceptionsByType={byType}
+        exceptionsBySeverity={bySeverity}
+      />
+
       {/* Agentic Pipeline Status Banner */}
       <Card>
         <CardBody className="p-4">
@@ -265,10 +316,10 @@ export default function DashboardPage() {
           <CardBody className="space-y-3">
             {byType.length === 0 ? (
               <EmptyState
-                icon={AlertTriangle}
+                illustration={<EmptyInboxIllustration className="w-24 h-24" />}
                 title="No open exceptions"
-                description="Run a scan to detect attendance anomalies"
-                className="py-6"
+                description="Run a scan or punch in to test attendance anomaly detection"
+                className="py-4"
               />
             ) : (
               byType.map((item: any) => {
@@ -300,7 +351,12 @@ export default function DashboardPage() {
           </CardHeader>
           <CardBody className="space-y-4">
             {bySeverity.length === 0 ? (
-              <EmptyState icon={Shield} title="No severity data" className="py-6" />
+              <EmptyState
+                illustration={<ComplianceShieldIllustration className="w-24 h-24" />}
+                title="Zero severity alerts"
+                description="Workforce is operating within policy boundaries"
+                className="py-4"
+              />
             ) : (
               <>
                 {/* Visual donut summary */}
