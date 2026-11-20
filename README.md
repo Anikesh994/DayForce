@@ -5,6 +5,7 @@
 ![AttendWise AI Banner](https://img.shields.io/badge/AttendWise_AI-Autonomous_Workforce_Resolution-4F46E5?style=for-the-badge&logo=shield&logoColor=white)
 
 [![CI Suite](https://github.com/Anikesh994/DayForce/actions/workflows/ci.yml/badge.svg)](https://github.com/Anikesh994/DayForce/actions)
+[![LLM: Grok API](https://img.shields.io/badge/LLM-Grok_API_(No_OpenAI)-F55036?style=flat-square&logo=x&logoColor=white)](https://x.ai/)
 [![Next.js](https://img.shields.io/badge/Next.js-15.0-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19.0-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-22.x-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -59,8 +60,8 @@ AttendWise AI combines **deterministic anomaly detection**, **RAG-powered policy
       <p>Interactive web punch clock allowing hourly workers to clock in, clock out, and inspect elapsed shift times with zero hardware requirements.</p>
     </td>
     <td width="50%">
-      <h3>🧠 Multi-Agent LangGraph Reasoning</h3>
-      <p>Specialized AI subagents investigate anomalies, retrieve policy clauses via dense vector search, and formulate evidence-backed resolutions.</p>
+      <h3>🧠 Multi-Agent Reasoning via Grok API</h3>
+      <p>Specialized AI subagents powered by the <strong>Grok API</strong> (xAI / Groq high-speed inference, strictly without OpenAI) investigate anomalies, retrieve policy clauses via dense vector search, and formulate evidence-backed resolutions.</p>
     </td>
   </tr>
   <tr>
@@ -107,8 +108,9 @@ graph TD
         Tx["⚡ Atomic Concurrency Engine"]
     end
 
-    subgraph Intelligence["🧠 AI Reasoning Service — Python 3.12 & FastAPI"]
+    subgraph Intelligence["🧠 AI Reasoning Service — Python 3.12, FastAPI & Grok API"]
         AIService["FastAPI Microservice<br/><code>http://localhost:8000</code>"]
+        Grok["⚡ Grok API (xAI / Groq)<br/><i>High-speed inference — No OpenAI</i>"]
         LangGraph["🔄 LangGraph State Machine"]
         RAG["📖 Semantic Policy RAG (Qdrant)"]
         Reviewer["🛡️ Hallucination & Citation Checker"]
@@ -176,7 +178,7 @@ sequenceDiagram
 |---|---|---|
 | **Frontend** | **Next.js 15 (App Router) + React 19** | TailwindCSS, Lucide icons, responsive toast system, dynamic digital clock, and before/after diff inspector |
 | **Domain API** | **Node.js 22 + Express + TypeScript** | ACID domain API, optimistic concurrency, transactional execution, centralized error boundaries |
-| **AI Backend** | **Python 3.12 + FastAPI + Pydantic v2** | High-throughput asynchronous service with strictly validated Pydantic models |
+| **AI Backend & LLM** | **Python 3.12 + FastAPI + Grok API** | High-throughput asynchronous service powered by the **Grok API** (xAI / Groq) for rapid deterministic inference and citation verification without OpenAI dependency |
 | **AI Orchestration** | **LangChain + LangGraph** | StateGraph with nodes for investigation, policy retrieval, resolution planning, and reviewer verification |
 | **Storage** | **SQLite via `better-sqlite3`** | Authoritative ACID relational data source with raw SQL migrations (zero Prisma per challenge rules) |
 | **Vector Store** | **Qdrant + SQLite Chunks** | Dense cosine vector retrieval with grounded offline policy fallback |
@@ -200,7 +202,9 @@ cd DayForce
 npm install
 ```
 
-### 2. Set Up Python AI Service
+### 2. Set Up Python AI Service & Grok API
+The platform runs on the **Grok API** (xAI / Groq) for rapid deterministic inference with zero OpenAI dependencies.
+
 ```bash
 cd apps/ai-service
 python -m venv .venv
@@ -212,6 +216,12 @@ python -m venv .venv
 source .venv/bin/activate && pip install .
 
 cd ../..
+```
+
+Configure your environment variables in `.env` (or pass via environment):
+```env
+LLM_PROVIDER=groq
+GROQ_API_KEY=your_grok_or_groq_api_key_here
 ```
 
 ### 3. Initialize Database & Seed Demo Data
