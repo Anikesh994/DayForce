@@ -194,6 +194,19 @@ router.post('/punch', (req: Request, res: Response): void => {
       [employee.id, dateStr]
     );
 
+    if (!shift) {
+      const shiftId = `shift-${employee.id}-${dateStr}`;
+      const startUtc = `${dateStr}T14:00:00.000Z`;
+      const endUtc = `${dateStr}T22:00:00.000Z`;
+      execute(
+        `INSERT OR IGNORE INTO shifts
+           (id, tenant_id, employee_id, local_date, timezone, scheduled_start_utc, scheduled_end_utc, break_minutes, shift_type, status, version, created_at)
+         VALUES (?, ?, ?, ?, 'America/New_York', ?, ?, 30, 'REGULAR', 'SCHEDULED', 1, datetime('now'))`,
+        [shiftId, tenantId, employee.id, dateStr, startUtc, endUtc]
+      );
+      shift = { id: shiftId, scheduled_start_utc: startUtc, scheduled_end_utc: endUtc };
+    }
+
     const recordId = `att-${employee.id}-${Date.now().toString(36)}`;
     execute(
       `INSERT INTO attendance_records
@@ -224,6 +237,24 @@ router.post('/punch', (req: Request, res: Response): void => {
       recordId,
       clockInUtc: nowIso,
     });
+
+    // Run real-time exception detection & AI pipeline in background if anomaly present
+    setTimeout(async () => {
+      try {
+        const detected = await detectExceptions({ tenantId, startDate: dateStr, endDate: dateStr });
+        const matched = detected.filter((e) => e.employeeId === employee.id);
+        for (const exc of matched) {
+          await runInvestigationPipeline({
+            exceptionId: exc.id,
+            tenantId,
+            correlationId: `punch-in-${Date.now()}`,
+            requestedByUserId: req.user!.id,
+          }).catch(() => {});
+        }
+      } catch (err) {
+        // silent
+      }
+    }, 150);
   } else {
     // PUNCH OUT
     const active = queryOne<any>(
@@ -272,6 +303,24 @@ router.post('/punch', (req: Request, res: Response): void => {
       recordId,
       clockOutUtc: nowIso,
     });
+
+    // Run real-time exception detection & AI pipeline in background
+    setTimeout(async () => {
+      try {
+        const detected = await detectExceptions({ tenantId, startDate: dateStr, endDate: dateStr });
+        const matched = detected.filter((e) => e.employeeId === employee.id);
+        for (const exc of matched) {
+          await runInvestigationPipeline({
+            exceptionId: exc.id,
+            tenantId,
+            correlationId: `punch-out-${Date.now()}`,
+            requestedByUserId: req.user!.id,
+          }).catch(() => {});
+        }
+      } catch (err) {
+        // silent
+      }
+    }, 150);
   }
 });
 

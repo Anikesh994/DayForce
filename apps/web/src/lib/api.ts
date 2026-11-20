@@ -23,7 +23,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000);
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
 
   try {
     const res = await fetch(`${BASE}${path}`, {
@@ -34,9 +34,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     clearTimeout(timeoutId);
 
     if (res.status === 401) {
-      clearToken();
-      if (typeof window !== 'undefined') window.location.href = '/login';
-      throw new Error('Unauthorized');
+      const err = await res.json().catch(() => ({}));
+      if (path !== '/api/v1/auth/login' && path !== '/api/v1/auth/register') {
+        clearToken();
+        if (typeof window !== 'undefined') window.location.href = '/login';
+      }
+      throw new Error(err.error || 'Invalid credentials or unauthorized');
     }
 
     const data = await res.json();
@@ -67,6 +70,10 @@ export const api = {
   // Employees
   employees: (dept?: string) => request<any>(`/api/v1/employees${dept ? `?department=${dept}` : ''}`),
   employee:  (id: string)    => request<any>(`/api/v1/employees/${id}`),
+  createEmployee: (data: any) =>
+    request<{ employee: any; message: string }>('/api/v1/employees', {
+      method: 'POST', body: JSON.stringify(data),
+    }),
 
   // Attendance
   attendance: (params?: Record<string, string>) => {
