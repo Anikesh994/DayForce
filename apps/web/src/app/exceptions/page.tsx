@@ -132,7 +132,8 @@ export default function ExceptionsPage() {
                 {filtered.map((exc, idx) => (
                   <tr
                     key={exc.id}
-                    className="border-b border-slate-50 table-row-interactive group"
+                    onClick={() => window.location.href = `/exceptions/${exc.id}`}
+                    className="border-b border-slate-50 table-row-interactive group cursor-pointer hover:bg-indigo-50/40 transition-colors"
                     style={{ animationDelay: `${idx * 20}ms` }}
                   >
                     <td className="px-4 py-3.5">
@@ -148,12 +149,13 @@ export default function ExceptionsPage() {
                     <td className="px-4 py-3.5 text-xs text-slate-500">
                       {new Date(exc.detected_at).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-3.5 text-right">
                       <Link
                         href={`/exceptions/${exc.id}`}
-                        className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition-colors"
                       >
-                        View <ChevronRight className="w-3 h-3" />
+                        View <ChevronRight className="w-3.5 h-3.5" />
                       </Link>
                     </td>
                   </tr>

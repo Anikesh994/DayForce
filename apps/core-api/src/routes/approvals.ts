@@ -46,14 +46,31 @@ router.get('/', (req: Request, res: Response): void => {
 
   sql += ' ORDER BY a.requested_at DESC';
 
+  const safeParse = (val: any, fallback: any = []) => {
+    if (!val) return fallback;
+    if (typeof val !== 'string') return val;
+    try {
+      const p = JSON.parse(val);
+      return p !== null && p !== undefined ? p : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
   const rows = queryAll<any>(sql, params);
   res.json({
-    approvals: rows.map((r) => ({
-      ...r,
-      facts: JSON.parse(r.facts_json || '{}'),
-      proposedChanges: JSON.parse(r.proposed_changes_json || '[]'),
-      citations: JSON.parse(r.citations_json || '[]'),
-    })),
+    approvals: rows.map((r) => {
+      const parsedChanges = safeParse(r.proposed_changes_json || r.proposed_changes, []);
+      const parsedCitations = safeParse(r.citations_json || r.policy_citations, []);
+      return {
+        ...r,
+        facts: safeParse(r.facts_json || r.facts, {}),
+        proposedChanges: parsedChanges,
+        proposed_changes: parsedChanges,
+        citations: parsedCitations,
+        policy_citations: parsedCitations,
+      };
+    }),
   });
 });
 

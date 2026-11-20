@@ -155,7 +155,11 @@ export default function NotificationsPage() {
                 ? `/exceptions/${n.related_entity_id}`
                 : n.type === 'APPROVAL_REQUESTED'
                   ? '/approvals'
-                  : null;
+                  : n.type === 'ATTENDANCE_PUNCH'
+                    ? '/attendance'
+                    : n.type === 'POLICY_INGESTED'
+                      ? '/policies'
+                      : null;
 
               return (
                 <div

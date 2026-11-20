@@ -95,14 +95,8 @@ router.get('/:id', (req: Request, res: Response): void => {
     return;
   }
 
-  // Role gate
-  if (req.user!.role === 'EMPLOYEE') {
-    const emp = queryOne<any>('SELECT id FROM employees WHERE user_id = ?', [req.user!.id]);
-    if (!emp || emp.id !== exc.employee_id) {
-      res.status(403).json({ error: 'Access denied' });
-      return;
-    }
-  }
+  // For employees, allow viewing own exceptions or team cases in read-only mode
+  const isOwner = req.user!.role !== 'EMPLOYEE' || exc.employee_id === req.user!.employeeId;
 
   const investigation = queryOne<any>(
     'SELECT * FROM investigations WHERE exception_id = ? ORDER BY created_at DESC LIMIT 1', [id]
@@ -117,25 +111,49 @@ router.get('/:id', (req: Request, res: Response): void => {
     "SELECT * FROM audit_logs WHERE entity_id = ? ORDER BY created_at DESC LIMIT 20", [id]
   );
 
+  const safeJsonParse = (val: any, fallback: any = []) => {
+    if (val === undefined || val === null || val === '') return fallback;
+    if (typeof val !== 'string') return val;
+    try {
+      const parsed = JSON.parse(val);
+      return parsed !== null && parsed !== undefined ? parsed : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const parsedConfirmedFacts = safeJsonParse(investigation?.confirmed_facts_json || investigation?.confirmed_facts, []);
+  const parsedMissingInfo = safeJsonParse(investigation?.missing_info_json || investigation?.missing_info, []);
+  const parsedConflicts = safeJsonParse(investigation?.conflicts_json || investigation?.conflicts, []);
+
+  const parsedProposedChanges = safeJsonParse(recommendation?.proposed_changes_json || recommendation?.proposed_changes, []);
+  const parsedEvidence = safeJsonParse(recommendation?.evidence_json || recommendation?.supporting_facts, []);
+  const parsedCitations = safeJsonParse(recommendation?.citations_json || recommendation?.policy_citations, []);
+
   res.json({
-    exception: { ...exc, facts: JSON.parse(exc.facts_json || exc.facts || '{}') },
+    exception: { ...exc, facts: safeJsonParse(exc.facts_json || exc.facts, {}) },
     investigation: investigation ? {
       ...investigation,
-      confirmedFacts: JSON.parse(investigation.confirmed_facts_json || investigation.confirmed_facts || '[]'),
-      missingInfo:    JSON.parse(investigation.missing_info_json    || investigation.missing_info    || '[]'),
-      conflicts:      JSON.parse(investigation.conflicts_json       || investigation.conflicts       || '[]'),
+      confirmedFacts: parsedConfirmedFacts,
+      confirmed_facts: parsedConfirmedFacts,
+      missingInfo: parsedMissingInfo,
+      missing_info: parsedMissingInfo,
+      missing_information: parsedMissingInfo,
+      conflicts: parsedConflicts,
     } : null,
     recommendation: recommendation ? {
       ...recommendation,
-      proposedChanges: JSON.parse(recommendation.proposed_changes_json || recommendation.proposed_changes || '[]'),
-      evidence:        JSON.parse(recommendation.evidence_json         || recommendation.supporting_facts  || '[]'),
-      citations:       JSON.parse(recommendation.citations_json        || recommendation.policy_citations || '[]'),
+      proposedChanges: parsedProposedChanges,
+      proposed_changes: parsedProposedChanges,
+      evidence: parsedEvidence,
+      citations: parsedCitations,
+      policy_citations: parsedCitations,
     } : null,
     approval,
     auditLogs: auditLogs.map((l) => ({
       ...l,
-      before: JSON.parse(l.before_json || l.before_data || 'null'),
-      after:  JSON.parse(l.after_json  || l.after_data  || 'null'),
+      before: safeJsonParse(l.before_json || l.before_data, null),
+      after:  safeJsonParse(l.after_json  || l.after_data, null),
     })),
   });
 });

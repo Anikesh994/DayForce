@@ -20,6 +20,20 @@ function formatUtc(iso: string | null | undefined) {
   return new Date(iso).toLocaleString();
 }
 
+function toArray<T = any>(val: any): T[] {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 function getLifecycleSteps(status: string): Step[] {
   const stages = ['DETECTED', 'INVESTIGATING', 'WAITING_FOR_APPROVAL', 'RESOLVED'];
   const labels = ['Detected', 'Investigating', 'Approval', 'Resolved'];
@@ -52,9 +66,9 @@ export default function ExceptionDetailPage() {
   async function triggerInvestigation() {
     setInvLoading(true);
     try {
-      await api.investigate(id);
-      success('Investigation Triggered', 'The AI pipeline will analyze this case and update shortly.');
-      setTimeout(load, 3000);
+      const res = await api.investigate(id);
+      success('Investigation Completed', res.message || 'The AI pipeline analyzed this case and created an approval.');
+      await load();
     } catch (e: any) { showError('Investigation Failed', e.message); }
     setInvLoading(false);
   }
@@ -90,6 +104,12 @@ export default function ExceptionDetailPage() {
   const { exception: exc, investigation: inv, recommendation: rec, approval, auditLogs } = data;
   const facts = (() => { try { return typeof exc?.facts === 'string' ? JSON.parse(exc.facts) : exc?.facts || {}; } catch { return {}; } })();
   const isTerminal = ['RESOLVED','CANCELLED','REJECTED'].includes(exc.status);
+
+  const confirmedFacts = toArray(inv?.confirmed_facts || inv?.confirmedFacts);
+  const missingInfo = toArray(inv?.missing_information || inv?.missing_info || inv?.missingInfo);
+  const citations = toArray(rec?.citations || rec?.policy_citations);
+  const proposedChanges = toArray(rec?.proposed_changes || rec?.proposedChanges);
+  const safeAuditLogs = toArray(auditLogs);
 
   return (
     <div className="p-6 space-y-5 max-w-5xl animate-fade-in">
@@ -219,13 +239,13 @@ export default function ExceptionDetailPage() {
                   {inv.summary}
                 </p>
 
-                {(inv.confirmed_facts || inv.confirmedFacts || []).length > 0 && (
+                {confirmedFacts.length > 0 && (
                   <div>
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 mb-2">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Confirmed Facts
                     </div>
                     <ul className="space-y-1.5">
-                      {(inv.confirmed_facts || inv.confirmedFacts || []).map((f: string, i: number) => (
+                      {confirmedFacts.map((f: string, i: number) => (
                         <li key={i} className="text-xs text-slate-600 flex gap-2 bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-100">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5" />{f}
                         </li>
@@ -234,13 +254,13 @@ export default function ExceptionDetailPage() {
                   </div>
                 )}
 
-                {(inv.missing_information || inv.missingInfo || []).length > 0 && (
+                {missingInfo.length > 0 && (
                   <div>
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 mb-2">
                       <AlertCircle className="w-3.5 h-3.5" /> Missing Information
                     </div>
                     <ul className="space-y-1.5">
-                      {(inv.missing_information || inv.missingInfo || []).map((m: string, i: number) => (
+                      {missingInfo.map((m: string, i: number) => (
                         <li key={i} className="text-xs text-amber-700 flex gap-2 bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">
                           <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />{m}
                         </li>
@@ -286,13 +306,13 @@ export default function ExceptionDetailPage() {
                 </div>
 
                 {/* Policy Citations */}
-                {rec.citations?.length > 0 && (
+                {citations.length > 0 && (
                   <div>
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 mb-3">
-                      <Quote className="w-3.5 h-3.5" /> Policy Citations ({rec.citations.length})
+                      <Quote className="w-3.5 h-3.5" /> Policy Citations ({citations.length})
                     </div>
                     <div className="space-y-2">
-                      {rec.citations.map((cit: any, i: number) => (
+                      {citations.map((cit: any, i: number) => (
                         <div key={i} className="bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100 rounded-xl p-4 text-xs">
                           <div className="flex items-center gap-2 mb-2">
                             <FileText className="w-3.5 h-3.5 text-indigo-600" />
@@ -310,13 +330,13 @@ export default function ExceptionDetailPage() {
                 )}
 
                 {/* Proposed Changes - Side by Side Diff */}
-                {rec.proposed_changes?.length > 0 && (
+                {proposedChanges.length > 0 && (
                   <div>
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 mb-3">
-                      <GitCompare className="w-3.5 h-3.5" /> Proposed Changes ({rec.proposed_changes.length})
+                      <GitCompare className="w-3.5 h-3.5" /> Proposed Changes ({proposedChanges.length})
                     </div>
                     <div className="space-y-3">
-                      {rec.proposed_changes.map((ch: any, i: number) => (
+                      {proposedChanges.map((ch: any, i: number) => (
                         <div key={i} className="rounded-xl border border-slate-200 overflow-hidden">
                           <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
                             <span className="text-xs font-bold text-slate-700">{ch.field}</span>
@@ -398,11 +418,11 @@ export default function ExceptionDetailPage() {
               <h2 className="font-semibold text-slate-800 text-sm">Audit Trail</h2>
             </CardHeader>
             <CardBody>
-              {!auditLogs?.length ? (
+              {!safeAuditLogs.length ? (
                 <EmptyState icon={Shield} title="No audit events" className="py-4" />
               ) : (
                 <div className="space-y-0">
-                  {auditLogs.map((log: any, idx: number) => (
+                  {safeAuditLogs.map((log: any, idx: number) => (
                     <div key={log.id} className="relative flex gap-3 py-2.5">
                       <div className="relative flex flex-col items-center">
                         <div className="w-2.5 h-2.5 bg-indigo-400 rounded-full ring-4 ring-indigo-50 flex-shrink-0 z-10" />

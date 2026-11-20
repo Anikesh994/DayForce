@@ -21,7 +21,7 @@ router.get('/', (req: Request, res: Response): void => {
     params.push(tenantId);
   } else if (role === 'MANAGER') {
     // Managers see notifications directed to them or approval requests
-    sql = 'SELECT * FROM notifications WHERE (recipient_user_id = ? OR type = "APPROVAL_REQUESTED" OR type = "EXCEPTION_DETECTED") AND tenant_id = ?';
+    sql = "SELECT * FROM notifications WHERE (recipient_user_id = ? OR type = 'APPROVAL_REQUESTED' OR type = 'EXCEPTION_DETECTED') AND tenant_id = ?";
     params.push(userId, tenantId);
   } else {
     // Employees see notifications directed to them

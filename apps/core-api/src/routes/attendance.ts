@@ -198,7 +198,7 @@ router.post('/punch', (req: Request, res: Response): void => {
     execute(
       `INSERT INTO attendance_records
          (id, tenant_id, employee_id, shift_id, clock_in_utc, clock_out_utc, source, status, version, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, null, 'WEB_PUNCH', 'RECORDED', 1, datetime('now'), datetime('now'))`,
+       VALUES (?, ?, ?, ?, ?, null, 'WEB_CLOCK', 'RECORDED', 1, datetime('now'), datetime('now'))`,
       [recordId, tenantId, employee.id, shift ? shift.id : null, nowIso]
     );
 
@@ -245,7 +245,7 @@ router.post('/punch', (req: Request, res: Response): void => {
       execute(
         `INSERT INTO attendance_records
            (id, tenant_id, employee_id, shift_id, clock_in_utc, clock_out_utc, source, status, version, created_at, updated_at)
-         VALUES (?, ?, ?, null, null, ?, 'WEB_PUNCH', 'FLAGGED', 1, datetime('now'), datetime('now'))`,
+         VALUES (?, ?, ?, null, null, ?, 'WEB_CLOCK', 'FLAGGED', 1, datetime('now'), datetime('now'))`,
         [recordId, tenantId, employee.id, nowIso]
       );
     }

@@ -15,6 +15,20 @@ import {
 import Link from 'next/link';
 import { clsx } from 'clsx';
 
+function toArray<T = any>(val: any): T[] {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 export default function ApprovalsPage() {
   const [approvals,  setApprovals]  = useState<any[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -189,7 +203,9 @@ export default function ApprovalsPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {approvals.map((apr) => (
+          {approvals.map((apr) => {
+            const proposedChanges = toArray(apr.proposedChanges || apr.proposed_changes);
+            return (
             <Card key={apr.id} className="animate-slide-up" hover>
               <CardBody className="space-y-4">
                 {/* Header */}
@@ -225,13 +241,13 @@ export default function ApprovalsPage() {
                 </div>
 
                 {/* Proposed changes diff */}
-                {apr.proposedChanges?.length > 0 && (
+                {proposedChanges.length > 0 && (
                   <div className="rounded-xl border border-slate-200 overflow-hidden">
                     <div className="bg-amber-50 px-4 py-2 border-b border-amber-100">
                       <span className="text-xs font-semibold text-amber-700">Proposed Attendance Changes</span>
                     </div>
                     <div className="divide-y divide-slate-100">
-                      {apr.proposedChanges.map((ch: any, i: number) => (
+                      {proposedChanges.map((ch: any, i: number) => (
                         <div key={i} className="flex items-center gap-3 px-4 py-2.5 text-xs">
                           <span className="font-semibold text-slate-700 w-28 flex-shrink-0">{ch.field}</span>
                           <code className="bg-red-50 text-red-600 px-2 py-0.5 rounded border border-red-100 font-mono">{ch.current_value ?? 'null'}</code>
@@ -326,7 +342,8 @@ export default function ApprovalsPage() {
                 )}
               </CardBody>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
