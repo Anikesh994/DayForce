@@ -22,17 +22,30 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-  if (res.status === 401) {
-    clearToken();
-    if (typeof window !== 'undefined') window.location.href = '/login';
-    throw new Error('Unauthorized');
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.status === 401) {
+      clearToken();
+      if (typeof window !== 'undefined') window.location.href = '/login';
+      throw new Error('Unauthorized');
+    }
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
+    return data as T;
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    throw err;
   }
-
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
-  return data as T;
 }
 
 export const api = {

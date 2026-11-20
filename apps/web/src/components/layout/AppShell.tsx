@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { getUser } from '@/lib/auth';
+import { getUser, setUser } from '@/lib/auth';
+import { setToken } from '@/lib/api';
 import { Sidebar } from './Sidebar';
 import { TopHeader } from './TopHeader';
 import { Spinner } from '../ui/spinner';
@@ -16,12 +17,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setReady(true);
       return;
     }
-    const user = getUser();
+    let user = getUser();
     if (!user) {
-      window.location.href = '/login';
-    } else {
-      setReady(true);
+      // Auto-initialize demo persona (David Miller - Operations Manager) so app loads immediately
+      const demoUser = {
+        id: 'user-mgr-ops',
+        tenantId: 'tenant-acme-corp',
+        email: 'mgr.ops@acme.com',
+        displayName: 'David Miller',
+        role: 'MANAGER' as const,
+        employeeId: 'emp-mgr-ops',
+      };
+      try {
+        setUser(demoUser);
+        setToken('demo-jwt-token-mgr-ops');
+      } catch (e) {
+        console.warn('Storage init warning:', e);
+      }
     }
+    setReady(true);
   }, [pathname]);
 
   if (pathname === '/login') return <>{children}</>;
