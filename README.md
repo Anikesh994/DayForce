@@ -57,32 +57,42 @@ AttendWise AI combines **deterministic anomaly detection**, **RAG-powered policy
 <table>
   <tr>
     <td width="50%">
-      <h3>⏱️ Live Digital Web Clock</h3>
-      <p>Interactive web punch clock allowing hourly workers to clock in, clock out, and inspect elapsed shift times with zero hardware requirements.</p>
+      <h3>⏱️ Shift-Aware Digital Punch Clock</h3>
+      <p>Interactive web punch clock measuring clock-in and clock-out against assigned manager shift timings with real-time lateness calculation, grace periods, and elapsed timers.</p>
     </td>
+    <td width="50%">
+      <h3>📅 Manager Shift Assignment & Scheduling</h3>
+      <p>Managers can schedule custom shift timings (start/end time, date spans, breaks, shift types) per employee, while newly onboarded employees receive auto-provisioned forward shifts.</p>
+    </td>
+  </tr>
+  <tr>
     <td width="50%">
       <h3>🧠 Multi-Agent Reasoning via Grok API</h3>
       <p>Specialized AI subagents powered by the <strong>Grok API</strong> (xAI / Groq high-speed inference, strictly without OpenAI) investigate anomalies, retrieve policy clauses via dense vector search, and formulate evidence-backed resolutions.</p>
     </td>
+    <td width="50%">
+      <h3>🛡️ Strict Human-in-the-Loop Approval</h3>
+      <p>All consequential payroll and timecard adjustments require manager sign-off with clear side-by-side diffs, 1:1 idempotency, and mandatory rejection justifications.</p>
+    </td>
   </tr>
   <tr>
     <td width="50%">
-      <h3>🛡️ Strict Human-in-the-Loop Approval</h3>
-      <p>All consequential payroll and timecard adjustments require manager sign-off with clear side-by-side diffs and mandatory rejection justifications.</p>
+      <h3>🚨 Advanced Anomaly Detection Engine</h3>
+      <p>Deterministic rules for late arrival (>10m grace), early departures (>15m), overtime (>8h), unclosed shift handling on consecutive clock-ins, and 1.5x shift duration anomaly detection.</p>
     </td>
+    <td width="50%">
+      <h3>🔐 Granular Role-Based Access Control (RBAC)</h3>
+      <p>Hardened permissions for Employee, Manager, HR Admin, and System Admin roles—policies are read-only for employees/managers, while approvals are restricted to supervisors.</p>
+    </td>
+  </tr>
+  <tr>
     <td width="50%">
       <h3>📚 RAG Policy Ingestion Hub</h3>
       <p>Upload corporate policy documents with automated semantic chunking, SHA-256 deduplication, and verified citations with snippet grounding.</p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
-      <h3>🔔 Intelligent Notification Center</h3>
-      <p>Contextual in-app notification hub with live unread badge counters and deep links directly into exceptions, approvals, and shifts.</p>
-    </td>
-    <td width="50%">
-      <h3>🔒 Optimistic Concurrency & Auditability</h3>
-      <p>ACID-compliant SQLite transaction safety with version-locked updates (<code>version = version + 1</code>) and an immutable audit log.</p>
+      <h3>🧹 1-Click History Purge & Clean Slate</h3>
+      <p>Manager/Admin action to wipe historical exceptions and approvals cleanly with confirmation safeguards, resetting attendance records and audit logs.</p>
     </td>
   </tr>
 </table>
@@ -271,17 +281,95 @@ All seeded accounts share the default password: **`demo1234`**
 
 ---
 
+## 📅 Manager Shift Scheduling & Anomaly Engine
+
+AttendWise AI bridges the critical gap between scheduling and punch compliance. Every employee's punch events are directly calibrated against their assigned shift schedule.
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                   SHIFT TIMING & ANOMALY RESOLUTION FLOW              │
+│                                                                        │
+│   Manager Assigns Shift Timing  ──▶  Employee Punch Clock Event        │
+│   (Start, End, Breaks, Span)                 │                         │
+│                                              ▼                         │
+│                                      [ Comparison Engine ]             │
+│                                              │                         │
+│       ┌──────────────────────┬───────────────┴─────────────┬───────────┐
+│       ▼                      ▼                             ▼           ▼
+│  On-Time (≤10m)       Late Arrival (>10m)           Unclosed Shift   1.5x Duration
+│   [RECORDED]          [FLAGGED: LATE_ARRIVAL]       (Consecutive In)  (No Clock Out)
+│                            │                               │               │
+│                            └───────────────┬───────────────┘               │
+│                                            ▼                               │
+│                              AI LangGraph RAG Investigation ───────────────┘
+│                                            │
+│                                    1:1 Idempotent Approval
+│                                    (Manager Sign-off)
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### 1. Shift Assignment & Management (`POST /api/v1/shifts/assign`)
+- **Direct Scheduling**: Managers and HR Administrators can assign shift timings to any team member across custom date spans.
+- **Configurable Parameters**:
+  - `startTime` & `endTime` (e.g., `09:00` to `17:00` local)
+  - `breakMinutes` (30m, 45m, 60m unpaid deduction)
+  - `shiftType` (`REGULAR`, `OVERNIGHT`, `ON_CALL`)
+- **Auto-Provisioning**: Newly registered employees are automatically assigned 14 days of standard forward recurring shifts (`offset = 0 to 14`) mapped to their department's manager.
+- **Live Widget Display**: The digital punch clock in `/attendance` fetches the employee's active shift via `GET /api/v1/shifts/my-shift`, showing scheduled start, end, and duration.
+
+### 2. Shift Anomaly Detection Rules
+- **Late Arrival Grace Period**: Measured against assigned start time. Arrivals up to **10 minutes** are permitted without penalty. Clock-ins past 10 minutes are categorized by severity:
+  - `Category 1 (Minor)`: 11–30 minutes late
+  - `Category 2 (Medium)`: 31–60 minutes late
+  - `Category 3 (High)`: > 60 minutes late
+- **Consecutive Clock-Ins (No Departure Punch)**: If an employee clocks in multiple times consecutively without a clock-out, **the employee is never blocked**. The system automatically flags the previous unclosed record as `MISSING_CLOCK_OUT`, triggers the AI investigation pipeline, and logs the new punch seamlessly.
+- **1.5x Shift Duration Anomaly**: If an employee remains clocked in past **1.5x of their scheduled shift duration** (e.g. 12+ hours on an 8-hour shift) or past the processing window, an anomaly is automatically raised with elapsed duration metrics.
+- **Early Departure**: Flagged if departure occurs > **15 minutes** before scheduled shift end.
+- **Overtime Review**: Flagged if daily worked duration exceeds **8 hours** (after break deductions).
+
+---
+
+## 🛡️ Enterprise RBAC & Authorization Matrix
+
+AttendWise AI enforces strict Role-Based Access Control (RBAC) across four tiers:
+
+| Feature / Resource | `EMPLOYEE` | `MANAGER` | `HR_ADMIN` | `SYSTEM_ADMIN` |
+|---|:---:|:---:|:---:|:---:|
+| **Digital Web Clock & Personal Punches** | ✅ Clock In/Out | ✅ Clock In/Out | ✅ Clock In/Out | ✅ Clock In/Out |
+| **Personal Shifts & My Schedule** | ✅ Read-only | ✅ Read-only | ✅ Read-only | ✅ Read-only |
+| **Assign Shifts to Employees** | ❌ Restricted | ✅ Direct Reports | ✅ Org-wide | ✅ Org-wide |
+| **Corporate Policy Documents** | 👁️ Read-only | 👁️ Read-only | ✅ Upload & Edit | ✅ Full Control |
+| **Manager Approval Inbox** | ❌ Hidden | ✅ Direct Reports | ✅ All Approvals | ✅ All Approvals |
+| **Employee Directory** | ❌ Restricted | ✅ Team View | ✅ Full Directory | ✅ Full Directory |
+| **Trigger AI Attendance Scan** | ❌ Restricted | ✅ Scans Active Team | ✅ Org-wide Scan | ✅ Org-wide Scan |
+| **Purge / Clear Historical Clutter** | ❌ Restricted | ✅ With Confirmation | ✅ With Confirmation | ✅ With Confirmation |
+| **Cancel Exception Cases** | ❌ Restricted | ❌ Restricted | ✅ Allowed | ✅ Allowed |
+| **Audit Log Ledger** | ❌ Restricted | ❌ Restricted | ✅ Full Access | ✅ Full Access |
+
+---
+
+## ⚙️ 1:1 Approval Idempotency & Clean History Purge
+
+To prevent notification spam and redundant approval cards:
+- **Stable Idempotency Key**: Approvals are keyed on `approval:${tenantId}:${exceptionId}`, strictly enforcing a 1:1 relationship between an exception and its pending approval.
+- **Update-if-Exists Logic**: Repeated scans or investigations update the existing investigation, recommendation, and approval records in-place rather than inserting duplicate rows.
+- **1-Click History Purge (`POST /api/v1/exceptions/clear-history`)**: Accessible from both the Exception Center and Approval Inbox, allowing managers/admins to wipe test data and restore a clean slate with zero orphan records.
+- **Controlled Concurrency Batching**: Scans process exceptions in micro-batches (`BATCH_SIZE = 2`, max 6 AI investigations per scan run) with a 6-second timeout and instant local synthesis fallback, guaranteeing sub-5s response times without external API rate-limiting.
+
+---
+
 ## 🗺️ Key Application Screens & Features
 
 | Route | View Name | Capabilities & Purpose |
 |---|---|---|
 | `/dashboard` | **Executive Dashboard** | Real-time workforce KPIs, anomaly severity breakdown, and 1-click Attendance Scan trigger |
-| `/approvals` | **Approval Inbox** | HITL decision portal for managers with side-by-side proposed changes diffs, status filters, and approval/rejection actions |
-| `/attendance` | **Attendance & Web Clock** | Live digital timecard widget for clocking in/out with elapsed timer, plus historical shift records |
-| `/exceptions` | **Exception Center** | Searchable table of attendance anomalies with status filters and direct links to case files |
+| `/approvals` | **Approval Inbox** | HITL decision portal for managers with side-by-side proposed changes diffs, status filters, and 1-click "Clear History" |
+| `/attendance` | **Attendance & Web Clock** | Live digital timecard widget displaying assigned shift schedule, clocking in/out with elapsed timer, and punch history |
+| `/employees` | **Employee Directory & Scheduling** | Staff directory with modal for **assigning shift timings** (hours, dates, breaks) and auto-provisioning new accounts |
+| `/exceptions` | **Exception Center** | Searchable table of attendance anomalies with category icons, quick filters, and "Clear History" purge button |
 | `/exceptions/[id]` | **Exception Detail Case** | 4-step lifecycle stepper, confirmed facts, missing info, RAG policy citations, and on-demand investigation |
 | `/agents` | **AI Agent Workspace** | Interactive 7-stage architecture simulator with real-time log outputs and input requirement checklists |
-| `/policies` | **Policy Knowledge Base** | Vector-indexed corporate policy viewer with 1-click upload modal, chunk inspector, and industry templates |
+| `/policies` | **Policy Knowledge Base** | Vector-indexed corporate policy viewer (read-only for employees/managers; upload modal restricted to HR Admin) |
 | `/notifications` | **Notification Hub** | Alert center with unread badges, mark-all-read action, test alert generator, and deep navigation links |
 | `/audit` | **Immutable Audit Trail** | Chronological tamper-evident audit ledger with actor chips (User, System, Workflow) and delta diffs |
 
