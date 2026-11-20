@@ -13,8 +13,6 @@ Resume Link- https://drive.google.com/file/d/1ACzgb3B1CVzn-JbuVwBP_q-TMnZjLHJV/v
 </div>
 
 <div align="center">
-Resume link = https://drive.google.com/file/d/1ACzgb3B1CVzn-JbuVwBP_q-TMnZjLHJV/view?usp=drive_link
-
 
 ![AttendWise AI Banner](https://img.shields.io/badge/AttendWise_AI-Autonomous_Workforce_Resolution-4F46E5?style=for-the-badge&logo=shield&logoColor=white)
 
