@@ -49,3 +49,7 @@ yarn-error.log*
 docs/
 *.txt
 **/*.txt
+
+# Exclude presentations
+*.pptx
+presentation.html
