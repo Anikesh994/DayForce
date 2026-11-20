@@ -79,31 +79,36 @@ router.post('/scan', requireRole('MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN'), async (
       return !existingAppr;
     });
 
-    // Run AI pipeline in parallel for uninvestigated exceptions
+    // Run AI pipeline with controlled batching (batch size 2, up to 6 per scan) to ensure swift responses
     if (pendingNeedsApproval.length > 0) {
-      await Promise.allSettled(
-        pendingNeedsApproval.map(async (exc) => {
-          await publishEvent('attendance/exception.detected', {
-            tenantId,
-            correlationId: `scan-${Date.now()}`,
-            exceptionId: exc.id,
-            dedupeKey: exc.dedupeKey,
-            employeeId: exc.employeeId,
-            shiftId: exc.shiftId ?? '',
-            exceptionType: exc.exceptionType,
-            severity: exc.severity,
-            facts: exc.facts,
-            timestamp: new Date().toISOString(),
-          }).catch(() => {});
+      const toProcess = pendingNeedsApproval.slice(0, 6);
+      const BATCH_SIZE = 2;
+      for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
+        const batch = toProcess.slice(i, i + BATCH_SIZE);
+        await Promise.allSettled(
+          batch.map(async (exc) => {
+            await publishEvent('attendance/exception.detected', {
+              tenantId,
+              correlationId: `scan-${Date.now()}`,
+              exceptionId: exc.id,
+              dedupeKey: exc.dedupeKey,
+              employeeId: exc.employeeId,
+              shiftId: exc.shiftId ?? '',
+              exceptionType: exc.exceptionType,
+              severity: exc.severity,
+              facts: exc.facts,
+              timestamp: new Date().toISOString(),
+            }).catch(() => {});
 
-          return runInvestigationPipeline({
-            exceptionId: exc.id,
-            tenantId,
-            correlationId: `scan-${Date.now()}`,
-            requestedByUserId: req.user!.id,
-          });
-        })
-      );
+            return runInvestigationPipeline({
+              exceptionId: exc.id,
+              tenantId,
+              correlationId: `scan-${Date.now()}`,
+              requestedByUserId: req.user!.id,
+            });
+          })
+        );
+      }
     }
 
     res.json({

@@ -72,10 +72,10 @@ export async function setupEmployeeAndShifts(opts: SetupEmployeeOptions) {
     emp = queryOne<any>('SELECT * FROM employees WHERE id = ?', [empId]);
   }
 
-  // 2. Generate standard shifts for the employee (rolling 15-day window: past 7 days to next 7 days)
+  // 2. Generate standard shifts for the employee from today forward (next 14 days)
   const now = new Date();
   const dateList: string[] = [];
-  for (let offset = -7; offset <= 7; offset++) {
+  for (let offset = 0; offset <= 14; offset++) {
     const d = new Date(now);
     d.setDate(now.getDate() + offset);
     const dateStr = d.toISOString().slice(0, 10);
@@ -98,61 +98,6 @@ export async function setupEmployeeAndShifts(opts: SetupEmployeeOptions) {
          VALUES (?, ?, ?, ?, 'America/New_York', ?, ?, 30, 'REGULAR', 'SCHEDULED', 1, datetime('now'))`,
         [shiftId, tenantId, emp.id, dateStr, startUtc, endUtc]
       );
-    }
-  }
-
-  // 3. If employee has no attendance records or exceptions, seed 1 initial realistic anomaly
-  // from 2 days ago so that the AI pipeline immediately demonstrates end-to-end evidence synthesis!
-  const hasExceptions = queryOne<any>(
-    'SELECT id FROM exception_cases WHERE employee_id = ? LIMIT 1',
-    [emp.id]
-  );
-
-  if (!hasExceptions && role === 'EMPLOYEE') {
-    const past2Days = new Date(now);
-    past2Days.setDate(now.getDate() - 2);
-    const past2DateStr = past2Days.toISOString().slice(0, 10);
-
-    const pastShift = queryOne<any>(
-      'SELECT id FROM shifts WHERE employee_id = ? AND local_date = ?',
-      [emp.id, past2DateStr]
-    );
-
-    if (pastShift) {
-      // Create a punch in that was 35 mins late (09:35 local = 14:35 UTC)
-      const clockInUtc = `${past2DateStr}T14:35:00.000Z`;
-      const clockOutUtc = `${past2DateStr}T22:00:00.000Z`;
-      const arId = `att-${emp.id}-${past2DateStr}`;
-
-      execute(
-        `INSERT OR IGNORE INTO attendance_records
-           (id, tenant_id, employee_id, shift_id, clock_in_utc, clock_out_utc, source, status, version, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'WEB_CLOCK', 'FLAGGED', 1, datetime('now'))`,
-        [arId, tenantId, emp.id, pastShift.id, clockInUtc, clockOutUtc]
-      );
-
-      // Trigger anomaly detection for this window
-      try {
-        const detected = await detectExceptions({
-          tenantId,
-          startDate: past2DateStr,
-          endDate: now.toISOString().slice(0, 10),
-        });
-
-        const empExcs = detected.filter((e) => e.employeeId === emp.id);
-        for (const exc of empExcs) {
-          await runInvestigationPipeline({
-            exceptionId: exc.id,
-            tenantId,
-            correlationId: `onboarding-${Date.now()}`,
-            requestedByUserId: userId,
-          }).catch((pipeErr) => {
-            console.warn('[onboarding] Investigation pipeline error:', pipeErr);
-          });
-        }
-      } catch (err) {
-        console.warn('[onboarding] detectExceptions error:', err);
-      }
     }
   }
 

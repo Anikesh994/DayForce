@@ -2,11 +2,30 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import fs from 'fs';
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const dbPath = process.env.DATABASE_URL?.replace('file:', '') ?? path.join(__dirname, '../../dev.db');
+function resolveDbPath(): string {
+  const rawUrl = process.env.DATABASE_URL?.replace(/^file:/, '');
+  if (rawUrl) {
+    if (path.isAbsolute(rawUrl) && fs.existsSync(rawUrl)) return rawUrl;
+    const relToCwd = path.resolve(process.cwd(), rawUrl);
+    if (fs.existsSync(relToCwd)) return relToCwd;
+    const relToPkg = path.resolve(__dirname, '../../', rawUrl);
+    if (fs.existsSync(relToPkg)) return relToPkg;
+  }
+  const cand1 = path.resolve(__dirname, '../../dev.db');
+  if (fs.existsSync(cand1)) return cand1;
+  const cand2 = path.resolve(process.cwd(), 'apps/core-api/dev.db');
+  if (fs.existsSync(cand2)) return cand2;
+  const cand3 = path.resolve(process.cwd(), 'dev.db');
+  if (fs.existsSync(cand3)) return cand3;
+  return cand1;
+}
+
+const dbPath = resolveDbPath();
 
 let _db: Database.Database | null = null;
 

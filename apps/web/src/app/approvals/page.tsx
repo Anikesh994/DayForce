@@ -85,7 +85,7 @@ export default function ApprovalsPage() {
     setGenerating(true);
     try {
       const today = new Date();
-      const start = new Date(today); start.setDate(today.getDate() - 14);
+      const start = new Date(today); start.setDate(today.getDate() - 3);
       const fmt = (d: Date) => d.toISOString().slice(0, 10);
       const res = await api.scan(fmt(start), fmt(today));
       success(

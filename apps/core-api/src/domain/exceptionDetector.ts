@@ -35,7 +35,7 @@ export async function detectExceptions(opts: {
   const shifts = queryAll<any>(
     `SELECT s.*, 
             e.id AS empId, e.first_name || ' ' || e.last_name AS empName,
-            e.department, e.manager_employee_id,
+            e.department, e.manager_employee_id, e.created_at AS emp_created_at,
             ar.id AS arId, ar.clock_in_utc, ar.clock_out_utc, ar.version AS arVersion
      FROM shifts s
      JOIN employees e ON s.employee_id = e.id
@@ -60,6 +60,17 @@ export async function detectExceptions(opts: {
 
     // ── MISSING_CLOCK_IN ───────────────────────────────────────────────────
     if (!clockIn && now > new Date(startUtc.getTime() + CONFIG.lateArrivalGraceMinutes * 60000)) {
+      // Don't flag missing clock-in for shifts before the employee was onboarded
+      const empCreated = shift.emp_created_at ? new Date(shift.emp_created_at) : null;
+      if (empCreated && endUtc < new Date(empCreated.getTime() - 24 * 3600000)) {
+        continue;
+      }
+      // Shifts older than 7 days without punches are historical schedule backlog, ignore from active scans
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600000);
+      if (endUtc < sevenDaysAgo) {
+        continue;
+      }
+
       // Check approved leave
       const leave = queryOne<any>(
         `SELECT id FROM leave_records 
