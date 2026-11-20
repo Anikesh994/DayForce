@@ -29,6 +29,9 @@ jobs:
       - name: Install Node Dependencies
         run: npm ci
 
+      - name: Build Shared Contracts
+        run: npm --workspace=@attendwise/contracts run build
+
       - name: Initialize SQLite Schema & Seed
         run: npm run seed
 

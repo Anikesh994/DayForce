@@ -13,6 +13,10 @@
     "dev:worker": "npm --workspace=@attendwise/workflow-worker run dev",
     "dev:web": "npm --workspace=@attendwise/web run dev",
     "dev:ai": "apps\\ai-service\\.venv\\Scripts\\uvicorn.exe app.main:app --app-dir apps/ai-service --port 8000",
+    "build:contracts": "npm --workspace=@attendwise/contracts run build",
+    "prebuild": "npm run build:contracts",
+    "pretest": "npm run build:contracts",
+    "preseed": "npm run build:contracts",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "seed": "npm --workspace=@attendwise/core-api run seed"
