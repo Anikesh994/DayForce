@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { queryOne, queryAll, execute, transaction } from '../db/index.js';
 import { publishEvent } from '../events/publisher.js';
+import { validateProposedChangesGuardrail } from '@attendwise/contracts';
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 const INTERNAL_TOKEN = process.env.INTERNAL_SERVICE_TOKEN || 'dev-secret-internal-service-token-1234';
@@ -209,6 +210,26 @@ export async function runInvestigationPipeline(opts: {
 
   // 5. Persist everything atomically to SQLite
   const idempotencyKey = `approval:${exceptionId}:${recId}`;
+  // 4.1 Validate Proposed Changes Against Enterprise Whitelist Guardrails
+  if (proposedChanges.length > 0) {
+    const guardrailCheck = validateProposedChangesGuardrail(
+      proposedChanges.map((c: any) => ({
+        field: c.field,
+        proposedValue: c.proposed_value ?? c.proposedValue,
+        rationale: c.rationale,
+      }))
+    );
+    if (!guardrailCheck.passed) {
+      console.warn('[investigationRunner] Guardrail violations detected, filtering changes:', guardrailCheck.violations);
+      proposedChanges = proposedChanges.filter((c: any) =>
+        ['clock_in_utc', 'clock_out_utc', 'worked_hours', 'break_duration_mins'].includes(c.field)
+      );
+      if (proposedChanges.length === 0) {
+        verdict = 'NEEDS_REVISION';
+      }
+    }
+  }
+
   const confirmedFactsJson = JSON.stringify(confirmedFacts);
   const missingInfoJson = JSON.stringify(missingInfo);
   const conflictsJson = JSON.stringify([]);

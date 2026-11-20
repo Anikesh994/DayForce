@@ -37,17 +37,21 @@ class GraphState(TypedDict):
 # ── LLM helper ────────────────────────────────────────────────────────────────
 
 def _llm_call(prompt: str, fallback: str, max_tokens: int = 512) -> str:
-    """Call the configured LLM. Returns fallback string on any error."""
+    """Call the configured LLM with strict grounding instructions. Returns fallback string on any error."""
     if settings.LLM_PROVIDER.lower() == "mock":
         return fallback
     try:
         from app.services.llm_provider import get_llm
-        llm = get_llm(temperature=0.15, max_tokens=max_tokens)
+        llm = get_llm(temperature=0.10, max_tokens=max_tokens)
         resp = llm.invoke([
             SystemMessage(content=(
-                "You are an experienced HR compliance analyst. "
-                "Respond concisely, professionally and factually. "
-                "Never invent facts not present in the input."
+                "You are an enterprise HR compliance & workforce intelligence analyst for AttendWise AI. "
+                "Analyze facts using strict Chain-of-Thought (CoT) reasoning. "
+                "GROUNDING CONSTRAINTS: "
+                "1. Strictly use ONLY confirmed facts and provided policy citations. "
+                "2. Never hallucinate, extrapolate, or invent employee actions or rules. "
+                "3. If evidence is ambiguous or missing, explicitly state uncertainty and mandate human verification. "
+                "4. Keep language factual, objective, concise, and audit-ready."
             )),
             HumanMessage(content=prompt),
         ])
@@ -503,14 +507,22 @@ def node_review(state: GraphState) -> GraphState:
         if cit.chunk_id and cit.chunk_id not in retrieved_ids:
             issues.append(f"Citation '{cit.chunk_id}' not in retrieved sources — potential hallucination")
 
+    ALLOWED_FIELDS = {"clock_out_utc", "clock_in_utc", "worked_hours", "break_duration_mins"}
+    FORBIDDEN_FIELDS = {"salary", "hourly_rate", "role", "department", "manager_id", "bank_account"}
+
     for change in rec.proposed_changes:
         if not change.rationale:
             issues.append(f"Proposed change to '{change.field}' has no rationale")
-        if change.field not in ("clock_out_utc", "clock_in_utc"):
+        if change.field in FORBIDDEN_FIELDS:
+            issues.append(f"CRITICAL_GUARDRAIL_VIOLATION: Attempted to modify prohibited field '{change.field}'")
+        elif change.field not in ALLOWED_FIELDS:
             issues.append(f"Proposed change to unsupported field '{change.field}'")
 
     if rec.confidence_score < 0.35:
         issues.append(f"Confidence {rec.confidence_score:.2f} below minimum threshold 0.35")
+
+    if rec.risk_level == "HIGH" and rec.required_approver_role != "HR_ADMIN":
+        issues.append("HIGH risk level exception must require HR_ADMIN review")
 
     if policy and policy.insufficient_evidence and rec.recommendation_type not in (
         "ESCALATE_TO_HR", "REQUEST_EMPLOYEE_CONFIRMATION"
