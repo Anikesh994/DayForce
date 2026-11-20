@@ -94,10 +94,31 @@ export default function ExceptionsPage() {
   const [quickFilter, setQuickFilter] = useState<'ALL' | 'HIGH' | 'WAITING' | 'RESOLVED'>('ALL');
   const [clearing, setClearing] = useState(false);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const user = getUser();
   const { success, error: showError } = useToast();
 
   const isManagerOrAdmin = user?.role === 'MANAGER' || user?.role === 'HR_ADMIN' || user?.role === 'SYSTEM_ADMIN';
+
+  async function handleScan() {
+    setScanning(true);
+    try {
+      const today = new Date();
+      const start = new Date(today);
+      start.setDate(today.getDate() - 7);
+      const fmt = (d: Date) => d.toISOString().slice(0, 10);
+      const r = await api.scan(fmt(start), fmt(today));
+      success(
+        'AI Exception Scan Complete',
+        r.message || `Detected ${r.exceptions} exception(s) across the monitoring period.`
+      );
+      await load();
+    } catch (err: any) {
+      showError('Scan Failed', err.message || 'Unable to complete exception scan');
+    } finally {
+      setScanning(false);
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -203,6 +224,18 @@ export default function ExceptionsPage() {
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" /> Clear filters
+            </button>
+          )}
+
+          {isManagerOrAdmin && (
+            <button
+              onClick={handleScan}
+              disabled={scanning || loading}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-60"
+              title="Run automated attendance anomaly scan"
+            >
+              {scanning ? <Spinner size="sm" /> : <Sparkles className="w-3.5 h-3.5 text-indigo-200" />}
+              <span>{scanning ? 'Scanning…' : 'Run AI Exception Scan'}</span>
             </button>
           )}
 
@@ -327,6 +360,15 @@ export default function ExceptionsPage() {
               action={hasFilters ? (
                 <button onClick={clearFilters} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
                   Reset all filters
+                </button>
+              ) : isManagerOrAdmin ? (
+                <button
+                  onClick={handleScan}
+                  disabled={scanning}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-60"
+                >
+                  {scanning ? <Spinner size="sm" /> : <Sparkles className="w-3.5 h-3.5 text-indigo-200" />}
+                  <span>{scanning ? 'Scanning…' : 'Run AI Exception Scan Now'}</span>
                 </button>
               ) : undefined}
             />

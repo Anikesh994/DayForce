@@ -1,6 +1,17 @@
 # AttendWise AI
 
+<div align="center">
+
 PPT LINK- https://docs.google.com/presentation/d/1WPpH4_VT2WVhPiCrjplRPF-ytL6J-iOo/edit?usp=sharing&ouid=109804595680751599445&rtpof=true&sd=true
+
+Resume Link- https://drive.google.com/file/d/1ACzgb3B1CVzn-JbuVwBP_q-TMnZjLHJV/view?usp=drive_link
+
+### 📊 Project Submission Links
+**PPT Presentation:** [Dayforce AI Challenge Presentation (Google Slides)](https://docs.google.com/presentation/d/1WPpH4_VT2WVhPiCrjplRPF-ytL6J-iOo/edit?usp=sharing&ouid=109804595680751599445&rtpof=true&sd=true)  
+**Candidate Resume:** [Anikesh Kumar Resume (Google Drive)](https://drive.google.com/file/d/1ACzgb3B1CVzn-JbuVwBP_q-TMnZjLHJV/view?usp=drive_link)
+
+</div>
+
 <div align="center">
 Resume link = https://drive.google.com/file/d/1ACzgb3B1CVzn-JbuVwBP_q-TMnZjLHJV/view?usp=drive_link
 
