@@ -51,20 +51,6 @@ AttendWise AI combines **deterministic anomaly detection**, **RAG-powered policy
 
 ---
 
-## 🏆 Evaluation Rubric Alignment (100% Score Matrix)
-
-> *"Build thoughtfully: ground AI in trusted context, validate its output, and keep people accountable for important decisions."*
-
-| Evaluation Parameter | Weight | Challenge Criteria | AttendWise AI Implementation & Evidence |
-|:---|:---:|:---|:---|
-| **Product Value** | **25%** | Clear user problem, practical workflow, and measurable outcome | • **Clear Problem**: Solves the $7.4B T&A compliance crisis and eliminates 15-min manual punch reviews.<br/>• **Practical Workflow**: Seamless digital web clock (`/attendance`) → automated anomaly detection → Grok AI investigation → manager approval inbox with side-by-side diffs (`/approvals`).<br/>• **Measurable Outcome**: **82% faster resolution**, **99.4% policy compliance**, **15m → 45s manager overhead**, and **$180K+ annual savings** per 1K staff. |
-| **Harness Engineering** | **25%** | Structured contracts, validation, guardrails, fallback design, and human oversight | • **Structured Contracts**: Full schema mirroring between TypeScript (`Zod`) in `@attendwise/contracts` and Python (`Pydantic v2`).<br/>• **Guardrails**: Strict field whitelist (`clock_in_utc`, `clock_out_utc`) prohibiting AI from touching compensation or roles.<br/>• **Fallback Design**: Graceful degradation to local deterministic synthesis when AI service or Grok is unreachable.<br/>• **Human Oversight (HITL)**: Consequential timecard mutations require explicit manager sign-off with mandatory rejection justifications, 48h auto-escalation, and tamper-evident audit logs (`/audit`). |
-| **LLM Implementation** | **20%** | Appropriate grounding, prompt design, retrieval quality, and useful model behavior | • **Appropriate Grounding**: Policy RAG indexing company handbooks in Qdrant with dense cosine similarity & semantic category filtering.<br/>• **Prompt Design**: Strict Chain-of-Thought (CoT) system prompts prohibiting hallucination and enforcing factual grounding.<br/>• **Retrieval Quality**: SHA-256 chunk deduplication, snippet grounding, and citation verification in the Reviewer agent node.<br/>• **Useful Behavior**: Structured proposals with confidence scores, risk classification (`LOW`/`MEDIUM`/`HIGH`), and clear before/after diffs powered by **Grok API** (xAI/Groq). |
-| **Engineering Quality** | **15%** | Code quality, API design, testing, observability, and documentation | • **Testing Suite**: **32 / 32 Automated Tests Passing (100%)** across datetime math, ACID database transactions, anomaly detection, and harness guardrails.<br/>• **API Design**: Decoupled 4-tier microservice architecture with RESTful contracts, optimistic locking (`version = version + 1`), and centralized error boundaries.<br/>• **Observability**: Tamper-evident audit ledger, correlation IDs, and automated GitHub Actions CI pipeline. |
-| **Demo Recording** | **15%** | Clear demonstration, technical explanation, and evidence-based results | • **Interactive Demo**: Live personas (`HR_ADMIN`, `MANAGER`, `EMPLOYEE`) with 1-click role switcher on login.<br/>• **Evidence-Based Walkthrough**: Step-by-step visual demonstration script documented in `DEMO_RECORDING_GUIDE.md` and 5-slide final presentation deck `AttendWise_AI_Final_Presentation.pptx`. |
-
----
-
 ## ✨ Key Platform Highlights
 
 <table>

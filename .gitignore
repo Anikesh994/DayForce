@@ -50,5 +50,6 @@ docs/
 *.txt
 **/*.txt
 
-# Exclude presentations
+# Exclude presentations and demo guides
 presentation.html
+DEMO_RECORDING_GUIDE.md
