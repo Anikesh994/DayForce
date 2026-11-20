@@ -69,37 +69,46 @@ router.post('/scan', requireRole('MANAGER', 'HR_ADMIN', 'SYSTEM_ADMIN'), async (
   try {
     const exceptions = await detectExceptions({ tenantId, startDate, endDate, departmentId });
 
-    // Publish to Inngest and run investigation pipeline for detected exceptions
-    for (const exc of exceptions) {
-      await publishEvent('attendance/exception.detected', {
-        tenantId,
-        correlationId: `scan-${Date.now()}`,
-        exceptionId: exc.id,
-        dedupeKey: exc.dedupeKey,
-        employeeId: exc.employeeId,
-        shiftId: exc.shiftId ?? '',
-        exceptionType: exc.exceptionType,
-        severity: exc.severity,
-        facts: exc.facts,
-        timestamp: new Date().toISOString(),
-      }).catch(() => {});
+    // Identify exceptions needing active approval generation
+    const pendingNeedsApproval = exceptions.filter((exc) => {
+      const existingAppr = queryOne<any>(
+        "SELECT id FROM approvals WHERE exception_id = ? AND status = 'PENDING' LIMIT 1",
+        [exc.id]
+      );
+      return !existingAppr;
+    });
 
-      // Automatically investigate each newly detected exception to populate approval inbox
-      try {
-        await runInvestigationPipeline({
-          exceptionId: exc.id,
-          tenantId,
-          correlationId: `scan-${Date.now()}`,
-          requestedByUserId: req.user!.id,
-        });
-      } catch (pipeErr) {
-        console.warn(`[scan] Investigation pipeline error for ${exc.id}:`, pipeErr);
-      }
+    // Run AI pipeline in parallel for uninvestigated exceptions
+    if (pendingNeedsApproval.length > 0) {
+      await Promise.allSettled(
+        pendingNeedsApproval.map(async (exc) => {
+          await publishEvent('attendance/exception.detected', {
+            tenantId,
+            correlationId: `scan-${Date.now()}`,
+            exceptionId: exc.id,
+            dedupeKey: exc.dedupeKey,
+            employeeId: exc.employeeId,
+            shiftId: exc.shiftId ?? '',
+            exceptionType: exc.exceptionType,
+            severity: exc.severity,
+            facts: exc.facts,
+            timestamp: new Date().toISOString(),
+          }).catch(() => {});
+
+          return runInvestigationPipeline({
+            exceptionId: exc.id,
+            tenantId,
+            correlationId: `scan-${Date.now()}`,
+            requestedByUserId: req.user!.id,
+          });
+        })
+      );
     }
 
     res.json({
-      message: `Scan complete. ${exceptions.length} exception(s) detected/updated.`,
+      message: `Scan complete. ${exceptions.length} exception(s) detected (${pendingNeedsApproval.length} new approvals generated).`,
       exceptions: exceptions.length,
+      newApprovals: pendingNeedsApproval.length,
       details: exceptions.map((e) => ({ id: e.id, type: e.exceptionType, severity: e.severity, employeeId: e.employeeId })),
     });
   } catch (err: any) {

@@ -69,10 +69,14 @@ export default function ApprovalsPage() {
       const start = new Date(today); start.setDate(today.getDate() - 14);
       const fmt = (d: Date) => d.toISOString().slice(0, 10);
       const res = await api.scan(fmt(start), fmt(today));
-      success('Scan Complete', `Detected ${res.exceptions} exceptions and created active approvals.`);
+      success(
+        'AI Approvals Synchronized',
+        res.message || `Detected ${res.exceptions} exceptions and synchronized approval items.`
+      );
+      setStatusTab('PENDING');
       await load();
     } catch (err: any) {
-      showError('Scan Failed', err.message);
+      showError('Generation Failed', err.message || 'Unable to complete AI scan');
     } finally {
       setGenerating(false);
     }
