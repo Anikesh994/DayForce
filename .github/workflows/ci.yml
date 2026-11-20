@@ -45,5 +45,5 @@ jobs:
         run: |
           cd apps/ai-service
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install .
           python -c "import app.main; print('AI Service imported successfully')"
